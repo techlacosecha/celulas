@@ -24,65 +24,50 @@
 
   <table id="tabla" class="display" style="width:100%"></table>
   <div id="error" hidden></div>
-  
-  <!-- SheetJS local copy of celula spreadsheet -->
-  <script src="./xlsx.full.min.js"></script>
 
-  <!-- DataTables v2 -->
-  <script src="https://cdn.datatables.net/2.0.2/js/dataTables.min.js"></script>
+<!-- 1)  SheetJS  – local copy you uploaded -->
+<script src="./xlsx.full.min.js"></script>
 
-  <script>
+<!-- 2)  jQuery  – required by DataTables -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- 3)  DataTables v2  – from jsDelivr CDN -->
+<link  rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
+
+<!-- 4)  *After* the three libraries, run your own script -->
+<script>
   (async () => {
-    const workbookPath = 'celulas.xlsx';  // archivo en la raíz del repo
+    /* ------------- your existing SheetJS + DataTables code ------------- */
+    const wb = await (await fetch('celulas.xlsx')).arrayBuffer().then(b=>XLSX.read(b,{type:'array'}));
+    const rowsArr = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+    const hdrIdx  = rowsArr.findIndex(r=>r.some(c=>String(c||'').toUpperCase().trim()==='ZONA'));
+    const header  = rowsArr[hdrIdx];
+    const dataRaw = rowsArr.slice(hdrIdx+1);
+    const rows    = dataRaw.filter(r=>r.some(x=>x!==undefined&&x!==null&&x!==''))
+                           .map(r=>Object.fromEntries(header.map((h,i)=>[String(h).trim(), r[i]])));
+    const zonaIdx = header.findIndex(h=>String(h).toUpperCase().trim()==='ZONA');
+    const zonas   = [...new Set(rows.map(r=>(r[header[zonaIdx]]||'').toString().trim()).filter(Boolean))].sort();
 
-    try {
-      const res = await fetch(workbookPath);
-      if (!res.ok) throw new Error('No se encontró el archivo '+workbookPath);
-      const buf = await res.arrayBuffer();
-      const wb  = XLSX.read(buf, {type:'array'});
-      const sheet = wb.Sheets[wb.SheetNames[0]];
+    const select  = document.getElementById('zonaSelect');
+    zonas.forEach(z=>select.add(new Option(z,z)));
 
-      const rowsArr = XLSX.utils.sheet_to_json(sheet, {header:1});
-      const hdrIdx  = rowsArr.findIndex(r => r.some(cell => String(cell||'').toUpperCase().trim()==='ZONA'));
-      if (hdrIdx === -1) throw new Error('No se localizó la columna "ZONA"');
+    const table   = new DataTable('#tabla', {
+      data: rows,
+      columns: header.map(h=>({title:h, data:h})),
+      paging: true,
+      searching: false,
+      info: true,
+      language:{info:'Mostrando _START_-_END_ de _TOTAL_ registros',
+                infoEmpty:'Sin registros',
+                paginate:{previous:'‹',next:'›'}}
+    });
 
-      const header  = rowsArr[hdrIdx];
-      const dataRaw = rowsArr.slice(hdrIdx+1);
-
-      const rows = dataRaw
-                    .filter(r => r.some(x => x!==undefined && x!==null && x!==''))
-                    .map(r => Object.fromEntries(header.map((h,i)=>[String(h).trim(), r[i]])));
-
-      const zonaIdx = header.findIndex(h => String(h).toUpperCase().trim()==='ZONA');
-      const zonas   = [...new Set(rows.map(r => (r[header[zonaIdx]]||'').toString().trim()).filter(Boolean))].sort();
-
-      const select  = document.getElementById('zonaSelect');
-      zonas.forEach(z => select.add(new Option(z, z)));
-
-      const table = new DataTable('#tabla', {
-        data: rows,
-        columns: header.map(h => ({title: h, data: h})),
-        paging: true,
-        searching: false,
-        info: true,
-        language: {
-          info: 'Mostrando _START_-_END_ de _TOTAL_ registros',
-          infoEmpty: 'Sin registros',
-          paginate: {previous:'‹', next:'›'}
-        }
-      });
-
-      select.addEventListener('change', e => {
-        const v = e.target.value;
-        table.column(zonaIdx).search(v ? '^'+v+'$' : '', !!v, false).draw();
-      });
-    } catch (err) {
-      console.error(err);
-      const div = document.getElementById('error');
-      div.textContent = '⚠️ '+err.message+' — abre la consola (F12) para detalles.';
-      div.hidden = false;
-    }
+    select.addEventListener('change', e=>{
+      const v=e.target.value;
+      table.column(zonaIdx).search(v?`^${v}$`:'',!!v,false).draw();
+    });
   })();
-  </script>
+</script>
 </body>
 </html>
