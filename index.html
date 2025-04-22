@@ -5,7 +5,7 @@
   <title>Células de Crecimiento | Filtro por Zona</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- DataTables CSS -->
+  <!-- DataTables v2 – CSS -->
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
 
@@ -28,13 +28,13 @@
   <table id="tabla" class="display" style="width:100%"></table>
   <div id="error" hidden></div>
 
-  <!-- 1 SheetJS (local copy) -->
+  <!-- 1 SheetJS – local copy you uploaded -->
   <script src="./xlsx.full.min.js"></script>
 
-  <!-- 2 jQuery (required by DataTables) -->
+  <!-- 2 jQuery – required by DataTables -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-  <!-- 3 DataTables JS -->
+  <!-- 3 DataTables v2 – JS -->
   <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
   <!-- 4 Your code -->
@@ -43,7 +43,7 @@
     const workbookPath = 'celulas.xlsx';
 
     try {
-      /* --- Leer el libro --- */
+      /* ---------- 1  Leer y convertir el Excel ---------- */
       const buf   = await fetch(workbookPath).then(r => {
         if (!r.ok) throw new Error('No se encontró el archivo ' + workbookPath);
         return r.arrayBuffer();
@@ -51,45 +51,66 @@
       const wb    = XLSX.read(buf, {type:'array'});
       const sheet = wb.Sheets[wb.SheetNames[0]];
 
-      /* --- Convertir a arrays --- */
       const rowsArr = XLSX.utils.sheet_to_json(sheet, {header:1});
       const hdrIdx  = rowsArr.findIndex(r => r.some(c => String(c||'')
-                                     .toUpperCase().trim() === 'ZONA'));
+                                   .toUpperCase().trim() === 'ZONA'));
       if (hdrIdx === -1) throw new Error('No se localizó la columna "ZONA"');
 
-      const header  = rowsArr[hdrIdx];
-      const dataRaw = rowsArr.slice(hdrIdx+1);
-      const rows    = dataRaw.filter(r => r.some(x => x!==undefined && x!==null && x!==''))
-                             .map(r => Object.fromEntries(header.map((h,i)=>[String(h).trim(), r[i]])));
+      const header   = rowsArr[hdrIdx];
+      const dataRaw  = rowsArr.slice(hdrIdx + 1);
 
-      /* --- Poblar dropdown --- */
+      const rows = dataRaw
+        .filter(r => r.some(x => x !== undefined && x !== null && x !== ''))
+        .map(r => Object.fromEntries(header.map((h,i)=>[String(h).trim(), r[i]])));
+
+      /* ---------- 2  Agrupar por (#, ZONA) y consolidar Dirección ---------- */
+      const numIdx  = header.findIndex(h => String(h).trim() === '#');
       const zonaIdx = header.findIndex(h => String(h).toUpperCase().trim() === 'ZONA');
-      const zonas   = [...new Set(rows.map(r => (r[header[zonaIdx]]||'').toString().trim())
-                         .filter(Boolean))].sort();
+      const dirIdx  = header.findIndex(h => String(h).toUpperCase().trim() === 'DIRECCION');
+
+      const map = new Map();          // clave → objeto consolidado
+      const grouped = [];
+
+      for (const r of rows) {
+        const key = `${r[header[numIdx]]}‖${r[header[zonaIdx]]}`;
+        if (map.has(key)) {
+          const obj = map.get(key);
+          const dir = r[header[dirIdx]];
+          if (dir && !obj[header[dirIdx]].includes(dir)) {
+            obj[header[dirIdx]] += '<br>' + dir;       // concat con salto de línea
+          }
+        } else {
+          const clone = {...r};
+          map.set(key, clone);
+          grouped.push(clone);
+        }
+      }
+
+      /* ---------- 3  Poblar menú de zonas ---------- */
+      const zonas   = [...new Set(grouped.map(r => r[header[zonaIdx]]).filter(Boolean))].sort();
       const select  = document.getElementById('zonaSelect');
       zonas.forEach(z => select.add(new Option(z, z)));
 
-      /* --- Crear DataTable --- */
+      /* ---------- 4  Crear DataTable ---------- */
       const table = new DataTable('#tabla', {
-        data: rows,
-        columns: header.map(h => ({title: h, data: h})),
-        paging: true,
-        searching: false,
-        info: true,
+        data:     grouped,
+        columns:  header.map(h => ({title: h, data: h})),
+        paging:   true,
+        searching:false,
+        info:     true,
         language: {
-          info: 'Mostrando _START_-_END_ de _TOTAL_ registros',
+          info:      'Mostrando _START_-_END_ de _TOTAL_ registros',
           infoEmpty: 'Sin registros',
-          paginate: {previous:'‹', next:'›'}
+          paginate:  {previous:'‹', next:'›'}
         }
       });
 
-      /* --- Filtro por zona --- */
+      /* ---------- 5  Filtro por zona ---------- */
       select.addEventListener('change', e => {
         const v = e.target.value;
-        const filtered = v ? rows.filter(r => r[header[zonaIdx]] === v) : rows;
-        table.clear();
-        table.rows.add(filtered);
-        table.draw();
+        const filtered = v ? grouped.filter(r => r[header[zonaIdx]] === v)
+                           : grouped;
+        table.clear().rows.add(filtered).draw();
       });
 
     } catch (err) {
