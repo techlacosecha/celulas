@@ -28,7 +28,7 @@
   <table id="tabla" class="display" style="width:100%"></table>
   <div id="error" hidden></div>
 
-  <!-- 1 SheetJS – local copy you uploaded -->
+  <!-- 1 SheetJS – local copy -->
   <script src="./xlsx.full.min.js"></script>
 
   <!-- 2 jQuery – required by DataTables -->
@@ -56,19 +56,37 @@
                                    .toUpperCase().trim() === 'ZONA'));
       if (hdrIdx === -1) throw new Error('No se localizó la columna "ZONA"');
 
-      const header   = rowsArr[hdrIdx];
+      const header   = rowsArr[hdrIdx].map(h => String(h).trim());
       const dataRaw  = rowsArr.slice(hdrIdx + 1);
 
-      const rows = dataRaw
+      const numIdx   = header.findIndex(h => h === '#');
+      const zonaIdx  = header.findIndex(h => h.toUpperCase() === 'ZONA');
+      const dirIdx   = header.findIndex(h => h.toUpperCase() === 'DIRECCION');
+
+      /* forward‑fill # y ZONA por filas vacías intermedias */
+      let currentNum = null, currentZona = null;
+      const filled   = dataRaw.map(r => {
+        const row = [...r];
+        if (row[numIdx] !== undefined && row[numIdx] !== null && row[numIdx] !== '') {
+          currentNum = row[numIdx];
+        } else {
+          row[numIdx] = currentNum;
+        }
+        if (row[zonaIdx] !== undefined && row[zonaIdx] !== null && row[zonaIdx] !== '') {
+          currentZona = row[zonaIdx];
+        } else {
+          row[zonaIdx] = currentZona;
+        }
+        return row;                  // HORA pasa tal cual, sin formatear
+      });
+
+      /* construir objetos */
+      const rows = filled
         .filter(r => r.some(x => x !== undefined && x !== null && x !== ''))
-        .map(r => Object.fromEntries(header.map((h,i)=>[String(h).trim(), r[i]])));
+        .map(r => Object.fromEntries(header.map((h,i)=>[h, r[i]])));
 
-      /* ---------- 2  Agrupar por (#, ZONA) y consolidar Dirección ---------- */
-      const numIdx  = header.findIndex(h => String(h).trim() === '#');
-      const zonaIdx = header.findIndex(h => String(h).toUpperCase().trim() === 'ZONA');
-      const dirIdx  = header.findIndex(h => String(h).toUpperCase().trim() === 'DIRECCION');
-
-      const map = new Map();          // clave → objeto consolidado
+      /* ---------- 2  Agrupar por (#, ZONA) y unir Dirección ---------- */
+      const map = new Map();
       const grouped = [];
 
       for (const r of rows) {
@@ -77,7 +95,7 @@
           const obj = map.get(key);
           const dir = r[header[dirIdx]];
           if (dir && !obj[header[dirIdx]].includes(dir)) {
-            obj[header[dirIdx]] += '<br>' + dir;       // concat con salto de línea
+            obj[header[dirIdx]] += '<br>' + dir;
           }
         } else {
           const clone = {...r};
@@ -86,7 +104,7 @@
         }
       }
 
-      /* ---------- 3  Poblar menú de zonas ---------- */
+      /* ---------- 3  Poblar menú zonas ---------- */
       const zonas   = [...new Set(grouped.map(r => r[header[zonaIdx]]).filter(Boolean))].sort();
       const select  = document.getElementById('zonaSelect');
       zonas.forEach(z => select.add(new Option(z, z)));
