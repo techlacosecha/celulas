@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Células de Crecimiento | Filtro por Zona</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- DataTables v2 (vanilla‑JS, no jQuery) -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/2.0.2/css/dataTables.dataTables.min.css" />
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;margin:2rem;background:#fafafa}
+    h1{margin-top:0}
+    #zonaSelect{margin:0 0 1rem 0;padding:.35rem .6rem;font-size:1rem}
+    table.dataTable thead th{white-space:nowrap}
+    #error{color:#c00;margin-top:1rem;font-weight:bold}
+  </style>
+</head>
+<body>
+  <h1>Células de Crecimiento 2025</h1>
+
+  <label for="zonaSelect"><strong>Filtrar por zona:</strong></label>
+  <select id="zonaSelect">
+    <option value="">— Todas —</option>
+  </select>
+
+  <table id="tabla" class="display" style="width:100%"></table>
+  <div id="error" hidden></div>
+
+  <!-- SheetJS to parse .xlsx in the browser -->
+  <script src="https://unpkg.com/xlsx@0.20.2/dist/xlsx.full.min.js"></script>
+  <!-- DataTables v2 -->
+  <script src="https://cdn.datatables.net/2.0.2/js/dataTables.min.js"></script>
+
+  <script>
+  (async () => {
+    const workbookPath = 'celulas.xlsx';  // archivo en la raíz del repo
+
+    try {
+      const res = await fetch(workbookPath);
+      if (!res.ok) throw new Error('No se encontró el archivo '+workbookPath);
+      const buf = await res.arrayBuffer();
+      const wb  = XLSX.read(buf, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+
+      const rowsArr = XLSX.utils.sheet_to_json(sheet, {header:1});
+      const hdrIdx  = rowsArr.findIndex(r => r.some(cell => String(cell||'').toUpperCase().trim()==='ZONA'));
+      if (hdrIdx === -1) throw new Error('No se localizó la columna "ZONA"');
+
+      const header  = rowsArr[hdrIdx];
+      const dataRaw = rowsArr.slice(hdrIdx+1);
+
+      const rows = dataRaw
+                    .filter(r => r.some(x => x!==undefined && x!==null && x!==''))
+                    .map(r => Object.fromEntries(header.map((h,i)=>[String(h).trim(), r[i]])));
+
+      const zonaIdx = header.findIndex(h => String(h).toUpperCase().trim()==='ZONA');
+      const zonas   = [...new Set(rows.map(r => (r[header[zonaIdx]]||'').toString().trim()).filter(Boolean))].sort();
+
+      const select  = document.getElementById('zonaSelect');
+      zonas.forEach(z => select.add(new Option(z, z)));
+
+      const table = new DataTable('#tabla', {
+        data: rows,
+        columns: header.map(h => ({title: h, data: h})),
+        paging: true,
+        searching: false,
+        info: true,
+        language: {
+          info: 'Mostrando _START_-_END_ de _TOTAL_ registros',
+          infoEmpty: 'Sin registros',
+          paginate: {previous:'‹', next:'›'}
+        }
+      });
+
+      select.addEventListener('change', e => {
+        const v = e.target.value;
+        table.column(zonaIdx).search(v ? '^'+v+'$' : '', !!v, false).draw();
+      });
+    } catch (err) {
+      console.error(err);
+      const div = document.getElementById('error');
+      div.textContent = '⚠️ '+err.message+' — abre la consola (F12) para detalles.';
+      div.hidden = false;
+    }
+  })();
+  </script>
+</body>
+</html>
