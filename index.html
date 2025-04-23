@@ -21,16 +21,22 @@
     .controls{margin:1.5rem 2rem;max-width:100vw;white-space:nowrap}
     #zonaSelect{margin-left:.5rem;padding:.35rem .6rem;font-size:1rem}
 
-    /* table wrapper for mobile scroll */
+    /* table wrapper for fallback horizontal scroll */
     .table-wrapper{overflow-x:auto;padding:0 2rem 2rem 2rem}
 
-    /* ---------- DataTable theme (mimics Excel tab) ---------- */
+    /* ---------- DataTable theme ---------- */
     table.dataTable{
       border:2px solid #13284b;
       border-collapse:collapse;
       width:100%;
-      min-width:900px;  /* let phone users scroll horizontally */
+      table-layout:auto;        /* let browser size columns */
     }
+    /* let very long words/addresses wrap */
+    table.dataTable th, table.dataTable td{
+      word-break:break-word;
+      white-space:normal;
+    }
+
     table.dataTable thead th{
       background:#2d57a3;color:#fff;border:1px solid #13284b;
       font-weight:700;text-align:center
@@ -41,7 +47,7 @@
     }
     /* zebra striping */
     table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
-    /* grid lines + padding */
+    /* grid + padding */
     table.dataTable tbody td{
       border:1px solid #cccccc;vertical-align:top;padding:6px 4px
     }
@@ -83,6 +89,7 @@
     const sheetName    = 'Consolidado';
 
     try {
+      /* fetch + parse workbook */
       const buf = await fetch(workbookPath).then(r=>{
         if(!r.ok) throw new Error('No se encontró '+workbookPath);
         return r.arrayBuffer();
@@ -98,22 +105,26 @@
         const o={}; header.forEach((h,i)=>o[h]=r[i]); return o;
       });
 
+      /* build dropdown */
       const zonaIdx = header.findIndex(h=>h.toUpperCase()==='ZONA');
       const zonas   = [...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
       const sel     = document.getElementById('zonaSelect');
       zonas.forEach(z=>sel.add(new Option(z,z)));
 
+      /* create DataTable */
       const table = new DataTable('#tabla',{
         data:rows,
         columns:header.map(h=>({title:h,data:h})),
-        paging:true,searching:false,info:true,
+        paging:true,searching:false,info:true,autoWidth:true,
         language:{
           info:'Mostrando _START_-_END_ de _TOTAL_ registros',
           infoEmpty:'Sin registros',
           paginate:{previous:'‹', next:'›'}
         }
       });
+      table.columns.adjust();   // recalc widths once after load
 
+      /* filter logic */
       sel.addEventListener('change',e=>{
         const v=e.target.value;
         const filtered=v?rows.filter(r=>r[header[zonaIdx]]===v):rows;
@@ -130,5 +141,3 @@
   </script>
 </body>
 </html>
-
-
