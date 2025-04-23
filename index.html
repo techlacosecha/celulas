@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <title>Células de Crecimiento | Zona</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
 <style>
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
@@ -57,18 +57,17 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 <script>
 (async () => {
   const workbookPath='celulas.xlsx',sheetName='Consolidado';
-  const geoCache=new Map(); // address -> {lat,lon}
+  const geoCache=new Map();
   function haversine(lat1,lon1,lat2,lon2){
-    const R=6371;const d2r=Math.PI/180;
+    const R=6371,d2r=Math.PI/180;
     const dlat=(lat2-lat1)*d2r, dlon=(lon2-lon1)*d2r;
     const a=Math.sin(dlat/2)**2+Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dlon/2)**2;
-    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); // km
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   }
   async function geocode(addr){
     if(geoCache.has(addr)) return geoCache.get(addr);
     const url=`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr)}`;
-    const res=await fetch(url,{headers:{'Accept-Language':'en'}});
-    const js=await res.json();
+    const js=await fetch(url,{headers:{'Accept-Language':'en'}}).then(r=>r.json());
     if(!js[0]) throw new Error('No se pudo geocodificar: '+addr);
     const obj={lat:+js[0].lat,lon:+js[0].lon};
     geoCache.set(addr,obj);return obj;
@@ -83,29 +82,29 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
     const header=rowsArr[0].map(h=>String(h).trim());
     const dataRaw=rowsArr.slice(1).filter(r=>r.some(x=>x!==''));
     const rows=dataRaw.map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
-    const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA');
-    const zonas=[...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
-    const sel=document.getElementById('zonaSelect');
-    zonas.forEach(z=>sel.add(new Option(z,z)));
 
-    /* DataTable */
-    const numIdx=header.findIndex(h=>h.trim()==='#');
+    const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA');
+    const numIdx =header.findIndex(h=>h.trim()==='#');
+    const zonas=[...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
+    const sel=document.getElementById('zonaSelect');zonas.forEach(z=>sel.add(new Option(z,z)));
+
+    /* DataTable sorted by # then Zona */
     const table=new DataTable('#tabla',{
       data:rows,
       columns:header.map(h=>({title:h,data:h})),
-      order:[[zonaIdx,'asc'],[numIdx,'asc']],
+      order:[[numIdx,'asc'],[zonaIdx,'asc']],
       paging:true,searching:false,info:true,autoWidth:false,
       language:{info:'Mostrando _START_-_END_ de _TOTAL_ registros',
-                infoEmpty:'Sin registros',paginate:{previous:'‹',next:'›'}}
+                infoEmpty:'Sin registros',paginate:{previous:'‹', next:'›'}}
     });
     table.columns.adjust();
 
-    /* Cards */
+    /* cards */
     const cardsDiv=document.getElementById('cards');
-    function buildCards(set,highlightKey){
+    function buildCards(set,hiliteKey){
       cardsDiv.innerHTML=set.map(o=>{
         const key=`${o['#']}‖${o['ZONA']}`;
-        return `<div class="card ${key===highlightKey?'highlight':''}">
+        return `<div class="card ${key===hiliteKey?'highlight':''}">
           <h2>#${o['#']} – ${o['ZONA']}</h2>
           <p><strong>Maestro:</strong> ${o['MAESTRO']}</p>
           <p><strong>Asistente:</strong> ${o['ASISTENTE']}</p>
@@ -113,47 +112,52 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
           <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p>
           <p><strong>Idioma:</strong> ${o['IDIOMA']}</p>
           <p><strong>Teléfono:</strong> ${o['TELEFONO']}</p>
-        </div>`}).join('');
+        </div>`;
+      }).join('');
     }
     buildCards(rows);
 
-    /* filter */
     function applyFilter(){
       const v=sel.value;
-      const filtered=v?rows.filter(r=>r[header[zonaIdx]]===v):rows;
+      const filtered=v?rows.filter(r=>r['ZONA']===v):rows;
       table.clear().rows.add(filtered).draw();table.columns.adjust();
       buildCards(filtered);
       document.getElementById('nearest').textContent='';
     }
     sel.addEventListener('change',applyFilter);
 
-    /* nearest search */
-    const home=document.getElementById('homeInput'),btn=document.getElementById('searchBtn'),nearestDiv=document.getElementById('nearest');
+    /* nearest */
+    const home=document.getElementById('homeInput'),btn=document.getElementById('searchBtn'),nDiv=document.getElementById('nearest');
     btn.addEventListener('click',async()=>{
       const addr=home.value.trim();if(!addr)return;
-      btn.disabled=true;nearestDiv.textContent='Buscando...';try{
+      btn.disabled=true;nDiv.textContent='Buscando...';
+      try{
         const {lat:latH,lon:lonH}=await geocode(addr);
         let best=null,minKm=1e9;
         for(const r of rows){
-          const dir=r['DIRECCION'];if(!dir)continue;
+          let dir=r['DIRECCION']||'';            // take text after first dash
+          const dash=dir.indexOf('-');if(dash!==-1) dir=dir.slice(dash+1).trim();
+          if(!dir)continue;
           const {lat,lon}=await geocode(dir);
           const km=haversine(latH,lonH,lat,lon);
           if(km<minKm){minKm=km;best=r;}
         }
         if(!best) throw new Error('No se encontró dirección válida');
-        const min= Math.round((minKm/48)*60); // 48 km/h ≈ 30 mph
-        nearestDiv.textContent=`≈ ${minKm.toFixed(1)} km ( ${min} min estimados ) a la célula más cercana (#${best['#']} – ${best['ZONA']})`;
-        /* highlight */
+        const min=Math.round((minKm/48)*60);
+        nDiv.textContent=`≈ ${minKm.toFixed(1)} km ( ${min} min estimados ) a la célula más cercana (#${best['#']} – ${best['ZONA']})`;
         const key=`${best['#']}‖${best['ZONA']}`;
         buildCards(sel.value?rows.filter(r=>r['ZONA']===sel.value):rows,key);
-        /* highlight on desktop table */
-        table.rows().every(function(){const d=this.data();const match=d['#']==best['#']&&d['ZONA']==best['ZONA'];$(this.node()).toggleClass('highlight',match)});
-      }catch(e){nearestDiv.textContent='Error: '+e.message;}
+        table.rows().every(function(){
+          const d=this.data();const match=d['#']==best['#']&&d['ZONA']==best['ZONA'];
+          $(this.node()).toggleClass('highlight',match);
+        });
+      }catch(e){nDiv.textContent='Error: '+e.message;}
       btn.disabled=false;
     });
 
   }catch(err){
-    console.error(err);const d=document.getElementById('error');d.textContent='⚠️ '+err.message;d.hidden=false;
+    console.error(err);
+    const d=document.getElementById('error');d.textContent='⚠️ '+err.message;d.hidden=false;
   }
 })();
 </script>
