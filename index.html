@@ -8,24 +8,24 @@
 <style>
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 header.banner{width:100vw;overflow:hidden}header.banner img{width:100%;height:auto;display:block}
-.controls{margin:1.5rem 2rem;max-width:100vw;white-space:nowrap;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+.controls{margin:1.5rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
 #zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
 #homeInput::placeholder{color:#999}
 #searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
 #searchBtn:disabled{opacity:.5;cursor:not-allowed}
 .table-wrapper{overflow-x:auto;padding:0 2rem 2rem}
-table.dataTable{border:2px solid #13284b;border-collapse:collapse;width:100%;table-layout:auto}
-@media (min-width:901px){table.dataTable{table-layout:fixed}}
+table.dataTable{border:2px solid #13284b;border-collapse:collapse;width:100%}
+@media(min-width:901px){table.dataTable{table-layout:fixed}}
 table.dataTable th,table.dataTable td{word-break:break-word;white-space:normal}
 table.dataTable thead th{background:#2d57a3;color:#fff;border:1px solid #13284b;font-weight:700;text-align:center}
 table.dataTable tbody td:nth-child(1){background:#eeeeee;font-weight:700;text-align:center}
 table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px 4px}
 .cards{display:none;padding:0 1rem 2rem}
-.card{border:1px solid #cccccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card{border:1px solid #ccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .card.highlight{border:2px solid #2d57a3}
 .card h2{margin:0 0 .5rem;font-size:1.15rem}.card p{margin:.25rem 0;font-size:.95rem;line-height:1.25}
-@media (max-width:900px){.table-wrapper{display:none}.cards{display:block}.controls{margin:1rem}}
+@media(max-width:900px){.table-wrapper{display:none}.cards{display:block}.controls{margin:1rem}}
 #nearest{margin:1rem 2rem 0;font-weight:600}
 #error{color:#c00;margin:1rem 2rem 0;font-weight:700}
 </style>
@@ -56,28 +56,44 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 
 <script>
 (async () => {
-  const workbookPath='celulas.xlsx',sheetName='Consolidado';
+  const workbookPath='celulas.xlsx', sheetName='Consolidado';
   const geoCache=new Map();
+
+  /* ---------- distance + geocode helpers ---------- */
   function haversine(lat1,lon1,lat2,lon2){
     const R=6371,d2r=Math.PI/180;
     const dlat=(lat2-lat1)*d2r, dlon=(lon2-lon1)*d2r;
     const a=Math.sin(dlat/2)**2+Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dlon/2)**2;
-    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));           // km
   }
-  async function geocode(addr){
-    if(geoCache.has(addr)) return geoCache.get(addr);
-    const url=`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr)}`;
-    const js=await fetch(url,{headers:{'Accept-Language':'en'}}).then(r=>r.json());
-    if(!js[0]) throw new Error('No se pudo geocodificar: '+addr);
-    const obj={lat:+js[0].lat,lon:+js[0].lon};
-    geoCache.set(addr,obj);return obj;
+
+  async function geocode(raw){
+    if(geoCache.has(raw)) return geoCache.get(raw);               // exact hit
+
+    // build variants: after-dash, full, last-comma
+    const variants=[];
+    const dash=raw.indexOf('-'); if(dash!==-1) variants.push(raw.slice(dash+1).trim());
+    variants.push(raw.trim());
+    const comma=raw.lastIndexOf(','); if(comma!==-1) variants.push(raw.slice(comma+1).trim());
+
+    for(const addr of variants){
+      if(!addr) continue;
+      if(geoCache.has(addr)) {geoCache.set(raw,geoCache.get(addr)); return geoCache.get(addr);}
+      try{
+        const url=`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr)}`;
+        const js=await fetch(url,{headers:{'Accept-Language':'en'}}).then(r=>r.json());
+        if(js[0]){const obj={lat:+js[0].lat,lon:+js[0].lon};geoCache.set(raw,obj);geoCache.set(addr,obj);return obj;}
+      }catch{/* ignore network errors */}
+    }
+    geoCache.set(raw,null); return null;                           // all attempts failed
   }
+  /* ------------------------------------------------- */
 
   try{
     const buf=await fetch(workbookPath).then(r=>{if(!r.ok)throw new Error('No '+workbookPath);return r.arrayBuffer()});
-    const wb=XLSX.read(buf,{type:'array'});
-    const sheet=wb.Sheets[sheetName]??wb.Sheets[wb.SheetNames[0]];
+    const wb=XLSX.read(buf,{type:'array'}), sheet=wb.Sheets[sheetName]??wb.Sheets[wb.SheetNames[0]];
     if(!sheet) throw new Error('Hoja "'+sheetName+'" no encontrada');
+
     const rowsArr=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
     const header=rowsArr[0].map(h=>String(h).trim());
     const dataRaw=rowsArr.slice(1).filter(r=>r.some(x=>x!==''));
@@ -85,26 +101,26 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 
     const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA');
     const numIdx =header.findIndex(h=>h.trim()==='#');
-    const zonas=[...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
-    const sel=document.getElementById('zonaSelect');zonas.forEach(z=>sel.add(new Option(z,z)));
+    const zonas=[...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort();
+    const sel=document.getElementById('zonaSelect'); zonas.forEach(z=>sel.add(new Option(z,z)));
 
-    /* DataTable sorted by # then Zona */
+    /* DataTable (# then Zona) */
     const table=new DataTable('#tabla',{
       data:rows,
       columns:header.map(h=>({title:h,data:h})),
       order:[[numIdx,'asc'],[zonaIdx,'asc']],
       paging:true,searching:false,info:true,autoWidth:false,
       language:{info:'Mostrando _START_-_END_ de _TOTAL_ registros',
-                infoEmpty:'Sin registros',paginate:{previous:'‹', next:'›'}}
+                infoEmpty:'Sin registros',paginate:{previous:'‹',next:'›'}}
     });
     table.columns.adjust();
 
-    /* cards */
+    /* card list */
     const cardsDiv=document.getElementById('cards');
-    function buildCards(set,hiliteKey){
+    function renderCards(set,highlightKey){
       cardsDiv.innerHTML=set.map(o=>{
         const key=`${o['#']}‖${o['ZONA']}`;
-        return `<div class="card ${key===hiliteKey?'highlight':''}">
+        return `<div class="card ${key===highlightKey?'highlight':''}">
           <h2>#${o['#']} – ${o['ZONA']}</h2>
           <p><strong>Maestro:</strong> ${o['MAESTRO']}</p>
           <p><strong>Asistente:</strong> ${o['ASISTENTE']}</p>
@@ -115,40 +131,39 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
         </div>`;
       }).join('');
     }
-    buildCards(rows);
+    renderCards(rows);
 
+    /* filter dropdown */
     function applyFilter(){
-      const v=sel.value;
-      const filtered=v?rows.filter(r=>r['ZONA']===v):rows;
+      const v=sel.value, filtered=v?rows.filter(r=>r['ZONA']===v):rows;
       table.clear().rows.add(filtered).draw();table.columns.adjust();
-      buildCards(filtered);
+      renderCards(filtered);
       document.getElementById('nearest').textContent='';
     }
     sel.addEventListener('change',applyFilter);
 
-    /* nearest */
+    /* nearest search */
     const home=document.getElementById('homeInput'),btn=document.getElementById('searchBtn'),nDiv=document.getElementById('nearest');
     btn.addEventListener('click',async()=>{
-      const addr=home.value.trim();if(!addr)return;
-      btn.disabled=true;nDiv.textContent='Buscando...';
+      const addr=home.value.trim(); if(!addr) return;
+      btn.disabled=true; nDiv.textContent='Buscando...';
       try{
-        const {lat:latH,lon:lonH}=await geocode(addr);
+        const homePos=await geocode(addr); if(!homePos) throw new Error('No se pudo geocodificar la dirección de casa');
         let best=null,minKm=1e9;
-        for(const r of rows){
-          let dir=r['DIRECCION']||'';            // take text after first dash
-          const dash=dir.indexOf('-');if(dash!==-1) dir=dir.slice(dash+1).trim();
-          if(!dir)continue;
-          const {lat,lon}=await geocode(dir);
-          const km=haversine(latH,lonH,lat,lon);
-          if(km<minKm){minKm=km;best=r;}
+        for(const row of rows){
+          const dirRaw=row['DIRECCION']||''; if(!dirRaw) continue;
+          const dash=dirRaw.indexOf('-'); const dirClean=(dash!==-1?dirRaw.slice(dash+1):dirRaw).trim();
+          const pos=await geocode(dirClean); if(!pos) continue;
+          const km=haversine(homePos.lat,homePos.lon,pos.lat,pos.lon);
+          if(km<minKm){minKm=km;best=row;}
         }
-        if(!best) throw new Error('No se encontró dirección válida');
+        if(!best) throw new Error('Ninguna dirección pudo geocodificarse');
         const min=Math.round((minKm/48)*60);
         nDiv.textContent=`≈ ${minKm.toFixed(1)} km ( ${min} min estimados ) a la célula más cercana (#${best['#']} – ${best['ZONA']})`;
         const key=`${best['#']}‖${best['ZONA']}`;
-        buildCards(sel.value?rows.filter(r=>r['ZONA']===sel.value):rows,key);
+        renderCards(sel.value?rows.filter(r=>r['ZONA']===sel.value):rows,key);
         table.rows().every(function(){
-          const d=this.data();const match=d['#']==best['#']&&d['ZONA']==best['ZONA'];
+          const d=this.data(),match=d['#']==best['#']&&d['ZONA']==best['ZONA'];
           $(this.node()).toggleClass('highlight',match);
         });
       }catch(e){nDiv.textContent='Error: '+e.message;}
@@ -157,7 +172,7 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 
   }catch(err){
     console.error(err);
-    const d=document.getElementById('error');d.textContent='⚠️ '+err.message;d.hidden=false;
+    const d=document.getElementById('error'); d.textContent='⚠️ '+err.message; d.hidden=false;
   }
 })();
 </script>
