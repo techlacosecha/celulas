@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Células de Crecimiento | Filtro por Zona</title>
+  <title>Células de Crecimiento | Filtro por Zona</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- DataTables v2 – CSS -->
+  <!-- DataTables v2 – CSS -->
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
 
@@ -18,100 +18,60 @@
   </style>
 </head>
 <body>
-  <h1>Células de Crecimiento 2025</h1>
+  <h1>Células de Crecimiento 2025</h1>
 
   <label for="zonaSelect"><strong>Filtrar por zona:</strong></label>
   <select id="zonaSelect">
-    <option value="">— Todas —</option>
+    <option value="">— Todas —</option>
   </select>
 
   <table id="tabla" class="display" style="width:100%"></table>
   <div id="error" hidden></div>
 
-  <!-- 1 SheetJS – local copy -->
+  <!-- 1 SheetJS – local copy -->
   <script src="./xlsx.full.min.js"></script>
 
-  <!-- 2 jQuery – required by DataTables -->
+  <!-- 2 jQuery – required by DataTables -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-  <!-- 3 DataTables v2 – JS -->
+  <!-- 3 DataTables v2 – JS -->
   <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
-  <!-- 4 Your code -->
+  <!-- 4 Page logic -->
   <script>
   (async () => {
     const workbookPath = 'celulas.xlsx';
+    const desiredSheet = 'Consolidado';
 
     try {
-      /* ---------- 1  Leer y convertir el Excel ---------- */
-      const buf   = await fetch(workbookPath).then(r => {
+      /* ----- fetch & parse the workbook ----- */
+      const buf = await fetch(workbookPath).then(r => {
         if (!r.ok) throw new Error('No se encontró el archivo ' + workbookPath);
         return r.arrayBuffer();
       });
-      const wb    = XLSX.read(buf, {type:'array'});
-      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const wb  = XLSX.read(buf, {type:'array'});
 
-      const rowsArr = XLSX.utils.sheet_to_json(sheet, {header:1});
-      const hdrIdx  = rowsArr.findIndex(r => r.some(c => String(c||'')
-                                   .toUpperCase().trim() === 'ZONA'));
-      if (hdrIdx === -1) throw new Error('No se localizó la columna "ZONA"');
+      const sheet = wb.Sheets[desiredSheet] ?? wb.Sheets[wb.SheetNames[0]];
+      if (!sheet) throw new Error('No se encontró ninguna hoja en el archivo.');
 
-      const header   = rowsArr[hdrIdx].map(h => String(h).trim());
-      const dataRaw  = rowsArr.slice(hdrIdx + 1);
+      /* ----- convert sheet to array ----- */
+      const rowsArr = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+      const header  = rowsArr[0].map(h => String(h).trim());
+      const dataRaw = rowsArr.slice(1).filter(r => r.some(x => x !== ''));
 
-      const numIdx   = header.findIndex(h => h === '#');
-      const zonaIdx  = header.findIndex(h => h.toUpperCase() === 'ZONA');
-      const dirIdx   = header.findIndex(h => h.toUpperCase() === 'DIRECCION');
+      const rows = dataRaw.map(r => Object.fromEntries(
+        header.map((h,i)=>[h, r[i]])
+      ));
 
-      /* forward‑fill # y ZONA por filas vacías intermedias */
-      let currentNum = null, currentZona = null;
-      const filled   = dataRaw.map(r => {
-        const row = [...r];
-        if (row[numIdx] !== undefined && row[numIdx] !== null && row[numIdx] !== '') {
-          currentNum = row[numIdx];
-        } else {
-          row[numIdx] = currentNum;
-        }
-        if (row[zonaIdx] !== undefined && row[zonaIdx] !== null && row[zonaIdx] !== '') {
-          currentZona = row[zonaIdx];
-        } else {
-          row[zonaIdx] = currentZona;
-        }
-        return row;                  // HORA pasa tal cual, sin formatear
-      });
-
-      /* construir objetos */
-      const rows = filled
-        .filter(r => r.some(x => x !== undefined && x !== null && x !== ''))
-        .map(r => Object.fromEntries(header.map((h,i)=>[h, r[i]])));
-
-      /* ---------- 2  Agrupar por (#, ZONA) y unir Dirección ---------- */
-      const map = new Map();
-      const grouped = [];
-
-      for (const r of rows) {
-        const key = `${r[header[numIdx]]}‖${r[header[zonaIdx]]}`;
-        if (map.has(key)) {
-          const obj = map.get(key);
-          const dir = r[header[dirIdx]];
-          if (dir && !obj[header[dirIdx]].includes(dir)) {
-            obj[header[dirIdx]] += '<br>' + dir;
-          }
-        } else {
-          const clone = {...r};
-          map.set(key, clone);
-          grouped.push(clone);
-        }
-      }
-
-      /* ---------- 3  Poblar menú zonas ---------- */
-      const zonas   = [...new Set(grouped.map(r => r[header[zonaIdx]]).filter(Boolean))].sort();
+      /* ----- build Zona dropdown ----- */
+      const zonaIdx = header.findIndex(h => h.toUpperCase() === 'ZONA');
+      const zonas   = [...new Set(rows.map(r => r[header[zonaIdx]]).filter(Boolean))].sort();
       const select  = document.getElementById('zonaSelect');
       zonas.forEach(z => select.add(new Option(z, z)));
 
-      /* ---------- 4  Crear DataTable ---------- */
+      /* ----- create DataTable ----- */
       const table = new DataTable('#tabla', {
-        data:     grouped,
+        data:     rows,
         columns:  header.map(h => ({title: h, data: h})),
         paging:   true,
         searching:false,
@@ -123,21 +83,22 @@
         }
       });
 
-      /* ---------- 5  Filtro por zona ---------- */
+      /* ----- filter on dropdown change ----- */
       select.addEventListener('change', e => {
         const v = e.target.value;
-        const filtered = v ? grouped.filter(r => r[header[zonaIdx]] === v)
-                           : grouped;
+        const filtered = v ? rows.filter(r => r[header[zonaIdx]] === v)
+                           : rows;
         table.clear().rows.add(filtered).draw();
       });
 
     } catch (err) {
       console.error(err);
       const div = document.getElementById('error');
-      div.textContent = '⚠️ ' + err.message + ' — abre la consola (F12) para detalles.';
+      div.textContent = '⚠️ ' + err.message + ' — abre la consola (F12) para detalles.';
       div.hidden = false;
     }
   })();
   </script>
 </body>
 </html>
+
