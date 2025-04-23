@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Células de Crecimiento | Filtro por Zona</title>
+  <title>Células de Crecimiento | Zona</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- DataTables v2 – CSS -->
@@ -12,18 +12,30 @@
   <style>
     /* ---------- page chrome ---------- */
     body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
+
+    /* banner */
+    header.banner{width:100vw;overflow:hidden}
     header.banner img{width:100%;height:auto;display:block}
 
-    .controls{margin:1.5rem 2rem}
+    /* controls */
+    .controls{margin:1.5rem 2rem;max-width:100vw;white-space:nowrap}
     #zonaSelect{margin-left:.5rem;padding:.35rem .6rem;font-size:1rem}
 
-    /* ---------- DataTable theme (mimics CELULAS LACOSECHA CC) ---------- */
-    table.dataTable{border:2px solid #13284b;border-collapse:collapse;width:100%}
+    /* table wrapper for mobile scroll */
+    .table-wrapper{overflow-x:auto;padding:0 2rem 2rem 2rem}
+
+    /* ---------- DataTable theme (mimics Excel tab) ---------- */
+    table.dataTable{
+      border:2px solid #13284b;
+      border-collapse:collapse;
+      width:100%;
+      min-width:900px;  /* let phone users scroll horizontally */
+    }
     table.dataTable thead th{
       background:#2d57a3;color:#fff;border:1px solid #13284b;
       font-weight:700;text-align:center
     }
-    /* # column */
+    /* "#" column */
     table.dataTable tbody td:nth-child(1){
       background:#eeeeee;font-weight:700;text-align:center
     }
@@ -38,13 +50,13 @@
   </style>
 </head>
 <body>
-  <!-- banner image -->
+  <!-- banner -->
   <header class="banner">
     <img src="./header.png"
          alt="La Cosecha Community Church – Células de Crecimiento por Zona">
   </header>
 
-  <!-- filter controls -->
+  <!-- filter -->
   <div class="controls">
     <label for="zonaSelect"><strong>Zona:</strong></label>
     <select id="zonaSelect">
@@ -52,8 +64,11 @@
     </select>
   </div>
 
-  <!-- data table -->
-  <table id="tabla" class="display"></table>
+  <!-- table -->
+  <div class="table-wrapper">
+    <table id="tabla" class="display"></table>
+  </div>
+
   <div id="error" hidden></div>
 
   <!-- libraries -->
@@ -61,37 +76,33 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
+  <!-- logic -->
   <script>
   (async () => {
-    const workbookPath = 'celulas.xlsx';      // unchanged file name
-    const desiredSheet = 'Consolidado';       // read sheet “Consolidado”
+    const workbookPath = 'celulas.xlsx';
+    const sheetName    = 'Consolidado';
 
     try {
-      /* -------- fetch + parse workbook -------- */
       const buf = await fetch(workbookPath).then(r=>{
         if(!r.ok) throw new Error('No se encontró '+workbookPath);
         return r.arrayBuffer();
       });
       const wb  = XLSX.read(buf,{type:'array'});
-      const sheet = wb.Sheets[desiredSheet] ?? wb.Sheets[wb.SheetNames[0]];
-      if(!sheet) throw new Error('No se encontró la hoja "'+desiredSheet+'"');
+      const sheet = wb.Sheets[sheetName] ?? wb.Sheets[wb.SheetNames[0]];
+      if(!sheet) throw new Error('Hoja "'+sheetName+'" no encontrada');
 
       const rowsArr = XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
       const header  = rowsArr[0].map(h=>String(h).trim());
       const dataRaw = rowsArr.slice(1).filter(r=>r.some(x=>x!==''));
       const rows = dataRaw.map(r=>{
-        const obj={};
-        header.forEach((h,i)=>obj[h]=r[i]);
-        return obj;
+        const o={}; header.forEach((h,i)=>o[h]=r[i]); return o;
       });
 
-      /* -------- build dropdown -------- */
       const zonaIdx = header.findIndex(h=>h.toUpperCase()==='ZONA');
-      const zonas = [...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
-      const select=document.getElementById('zonaSelect');
-      zonas.forEach(z=>select.add(new Option(z,z)));
+      const zonas   = [...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
+      const sel     = document.getElementById('zonaSelect');
+      zonas.forEach(z=>sel.add(new Option(z,z)));
 
-      /* -------- create table -------- */
       const table = new DataTable('#tabla',{
         data:rows,
         columns:header.map(h=>({title:h,data:h})),
@@ -99,22 +110,21 @@
         language:{
           info:'Mostrando _START_-_END_ de _TOTAL_ registros',
           infoEmpty:'Sin registros',
-          paginate:{previous:'‹',next:'›'}
+          paginate:{previous:'‹', next:'›'}
         }
       });
 
-      /* -------- filter logic -------- */
-      select.addEventListener('change',e=>{
+      sel.addEventListener('change',e=>{
         const v=e.target.value;
-        const filtered = v?rows.filter(r=>r[header[zonaIdx]]===v):rows;
+        const filtered=v?rows.filter(r=>r[header[zonaIdx]]===v):rows;
         table.clear().rows.add(filtered).draw();
       });
 
     } catch(err){
       console.error(err);
-      const div=document.getElementById('error');
-      div.textContent='⚠️ '+err.message+' — abre la consola (F12) para detalles.';
-      div.hidden=false;
+      const d=document.getElementById('error');
+      d.textContent='⚠️ '+err.message;
+      d.hidden=false;
     }
   })();
   </script>
