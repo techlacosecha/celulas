@@ -1,173 +1,161 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <title>Células de Crecimiento | Zona</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- DataTables v2 – CSS -->
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
-
-  <style>
-    /* ---------- page chrome ---------- */
-    body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
-
-    /* banner */
-    header.banner{width:100vw;overflow:hidden}
-    header.banner img{width:100%;height:auto;display:block}
-
-    /* controls */
-    .controls{margin:1.5rem 2rem;max-width:100vw;white-space:nowrap}
-    #zonaSelect{margin-left:.5rem;padding:.35rem .6rem;font-size:1rem}
-
-    /* ---------- desktop table (wrapper visible ≥901 px) ---------- */
-    .table-wrapper{overflow-x:auto;padding:0 2rem 2rem}
-
-    table.dataTable{
-      border:2px solid #13284b;border-collapse:collapse;width:100%;table-layout:auto;
-    }
-    /* evenly distribute columns & wrap long text on desktop */
-    @media (min-width:901px){
-      table.dataTable{table-layout:fixed;width:100%;}
-    }
-
-    table.dataTable th,table.dataTable td{word-break:break-word;white-space:normal}
-    table.dataTable thead th{
-      background:#2d57a3;color:#fff;border:1px solid #13284b;font-weight:700;text-align:center
-    }
-    table.dataTable tbody td:nth-child(1){
-      background:#eeeeee;font-weight:700;text-align:center
-    }
-    table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
-    table.dataTable tbody td{
-      border:1px solid #cccccc;vertical-align:top;padding:6px 4px
-    }
-
-    /* ---------- mobile card view (<901 px) ---------- */
-    .cards{display:none;padding:0 1rem 2rem}
-    .card{
-      border:1px solid #cccccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;
-      box-shadow:0 1px 3px rgba(0,0,0,.06)
-    }
-    .card h2{margin:0 0 .5rem;font-size:1.15rem}
-    .card p{margin:.25rem 0;font-size:.95rem;line-height:1.25}
-    .card .dir{margin-top:.5rem}
-
-    /* breakpoint */
-    @media (max-width:900px){
-      .table-wrapper{display:none}
-      .cards{display:block}
-      .controls{margin:1rem 1rem}
-    }
-
-    #error{color:#c00;margin:1rem 2rem 0;font-weight:bold}
-  </style>
+<meta charset="utf-8"/>
+<title>Células de Crecimiento | Zona</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
+<style>
+body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
+header.banner{width:100vw;overflow:hidden}header.banner img{width:100%;height:auto;display:block}
+.controls{margin:1.5rem 2rem;max-width:100vw;white-space:nowrap;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+#zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
+#homeInput::placeholder{color:#999}
+#searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
+#searchBtn:disabled{opacity:.5;cursor:not-allowed}
+.table-wrapper{overflow-x:auto;padding:0 2rem 2rem}
+table.dataTable{border:2px solid #13284b;border-collapse:collapse;width:100%;table-layout:auto}
+@media (min-width:901px){table.dataTable{table-layout:fixed}}
+table.dataTable th,table.dataTable td{word-break:break-word;white-space:normal}
+table.dataTable thead th{background:#2d57a3;color:#fff;border:1px solid #13284b;font-weight:700;text-align:center}
+table.dataTable tbody td:nth-child(1){background:#eeeeee;font-weight:700;text-align:center}
+table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
+table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px 4px}
+.cards{display:none;padding:0 1rem 2rem}
+.card{border:1px solid #cccccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card.highlight{border:2px solid #2d57a3}
+.card h2{margin:0 0 .5rem;font-size:1.15rem}.card p{margin:.25rem 0;font-size:.95rem;line-height:1.25}
+@media (max-width:900px){.table-wrapper{display:none}.cards{display:block}.controls{margin:1rem}}
+#nearest{margin:1rem 2rem 0;font-weight:600}
+#error{color:#c00;margin:1rem 2rem 0;font-weight:700}
+</style>
 </head>
 <body>
-  <!-- banner -->
-  <header class="banner">
-    <img src="./header.png"
-         alt="La Cosecha Community Church – Células de Crecimiento por Zona">
-  </header>
+<header class="banner"><img src="./header.png" alt="La Cosecha Community Church – Células de Crecimiento por Zona"></header>
 
-  <!-- filter -->
-  <div class="controls">
-    <label for="zonaSelect"><strong>Zona:</strong></label>
+<div class="controls">
+  <label><strong>Zona:</strong>
     <select id="zonaSelect"><option value="">— Todas —</option></select>
-  </div>
+  </label>
+  <label style="display:flex;align-items:center;gap:.4rem">
+    <span style="font-weight:600">Find nearest address:</span>
+    <input id="homeInput" type="text" size="25" placeholder="Home Address">
+  </label>
+  <button id="searchBtn">Search</button>
+</div>
 
-  <!-- desktop table -->
-  <div class="table-wrapper">
-    <table id="tabla" class="display"></table>
-  </div>
+<div id="nearest"></div>
 
-  <!-- mobile cards -->
-  <div id="cards" class="cards"></div>
+<div class="table-wrapper"><table id="tabla" class="display"></table></div>
+<div id="cards" class="cards"></div>
+<div id="error" hidden></div>
 
-  <div id="error" hidden></div>
+<script src="./xlsx.full.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
-  <!-- libraries -->
-  <script src="./xlsx.full.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
+<script>
+(async () => {
+  const workbookPath='celulas.xlsx',sheetName='Consolidado';
+  const geoCache=new Map(); // address -> {lat,lon}
+  function haversine(lat1,lon1,lat2,lon2){
+    const R=6371;const d2r=Math.PI/180;
+    const dlat=(lat2-lat1)*d2r, dlon=(lon2-lon1)*d2r;
+    const a=Math.sin(dlat/2)**2+Math.cos(lat1*d2r)*Math.cos(lat2*d2r)*Math.sin(dlon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)); // km
+  }
+  async function geocode(addr){
+    if(geoCache.has(addr)) return geoCache.get(addr);
+    const url=`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr)}`;
+    const res=await fetch(url,{headers:{'Accept-Language':'en'}});
+    const js=await res.json();
+    if(!js[0]) throw new Error('No se pudo geocodificar: '+addr);
+    const obj={lat:+js[0].lat,lon:+js[0].lon};
+    geoCache.set(addr,obj);return obj;
+  }
 
-  <!-- logic -->
-  <script>
-  (async () => {
-    const workbookPath = 'celulas.xlsx';
-    const sheetName    = 'Consolidado';
+  try{
+    const buf=await fetch(workbookPath).then(r=>{if(!r.ok)throw new Error('No '+workbookPath);return r.arrayBuffer()});
+    const wb=XLSX.read(buf,{type:'array'});
+    const sheet=wb.Sheets[sheetName]??wb.Sheets[wb.SheetNames[0]];
+    if(!sheet) throw new Error('Hoja "'+sheetName+'" no encontrada');
+    const rowsArr=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+    const header=rowsArr[0].map(h=>String(h).trim());
+    const dataRaw=rowsArr.slice(1).filter(r=>r.some(x=>x!==''));
+    const rows=dataRaw.map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
+    const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA');
+    const zonas=[...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
+    const sel=document.getElementById('zonaSelect');
+    zonas.forEach(z=>sel.add(new Option(z,z)));
 
-    try {
-      /* fetch + parse */
-      const buf = await fetch(workbookPath).then(r=>{
-        if(!r.ok) throw new Error('No se encontró '+workbookPath);
-        return r.arrayBuffer();
-      });
-      const wb  = XLSX.read(buf,{type:'array'});
-      const sheet = wb.Sheets[sheetName] ?? wb.Sheets[wb.SheetNames[0]];
-      if(!sheet) throw new Error('Hoja "'+sheetName+'" no encontrada');
+    /* DataTable */
+    const numIdx=header.findIndex(h=>h.trim()==='#');
+    const table=new DataTable('#tabla',{
+      data:rows,
+      columns:header.map(h=>({title:h,data:h})),
+      order:[[zonaIdx,'asc'],[numIdx,'asc']],
+      paging:true,searching:false,info:true,autoWidth:false,
+      language:{info:'Mostrando _START_-_END_ de _TOTAL_ registros',
+                infoEmpty:'Sin registros',paginate:{previous:'‹',next:'›'}}
+    });
+    table.columns.adjust();
 
-      const rowsArr = XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
-      const header  = rowsArr[0].map(h=>String(h).trim());
-      const dataRaw = rowsArr.slice(1).filter(r=>r.some(x=>x!==''));
-      const rows = dataRaw.map(r=>{
-        const o={}; header.forEach((h,i)=>o[h]=r[i]); return o;
-      });
-
-      /* dropdown */
-      const zonaIdx = header.findIndex(h=>h.toUpperCase()==='ZONA');
-      const zonas   = [...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
-      const sel=document.getElementById('zonaSelect');
-      zonas.forEach(z=>sel.add(new Option(z,z)));
-
-      /* desktop table */
-      const table = new DataTable('#tabla',{
-        data:rows,
-        columns:header.map(h=>({title:h,data:h})),
-        paging:true,searching:false,info:true,
-        autoWidth:false,      // let CSS width:100% + table-layout:fixed handle sizing
-        language:{
-          info:'Mostrando _START_-_END_ de _TOTAL_ registros',
-          infoEmpty:'Sin registros',
-          paginate:{previous:'‹', next:'›'}
-        }
-      });
-      table.columns.adjust();
-
-      /* mobile cards */
-      const cardsDiv = document.getElementById('cards');
-      function buildCards(dataset){
-        cardsDiv.innerHTML = dataset.map(obj=>`
-          <div class="card">
-            <h2>#${obj['#'] ?? ''} – ${obj[header[zonaIdx]]}</h2>
-            <p><strong>Maestro:</strong> ${obj['MAESTRO']||''}</p>
-            <p><strong>Asistente:</strong> ${obj['ASISTENTE']||''}</p>
-            <p class="dir"><strong>Dirección:</strong><br>${String(obj['DIRECCION']||'').replace(/\n/g,'<br>')}</p>
-            <p><strong>Día / Hora:</strong> ${obj['DIA']||''} ${obj['HORA']||''}</p>
-            <p><strong>Idioma:</strong> ${obj['IDIOMA']||''}</p>
-            <p><strong>Teléfono:</strong> ${obj['TELEFONO']||''}</p>
-          </div>
-        `).join('');
-      }
-      buildCards(rows);
-
-      /* sync filter */
-      sel.addEventListener('change',e=>{
-        const v=e.target.value;
-        const filtered=v?rows.filter(r=>r[header[zonaIdx]]===v):rows;
-        table.clear().rows.add(filtered).draw();
-        table.columns.adjust();          // recalc widths after change
-        buildCards(filtered);
-      });
-
-    } catch(err){
-      console.error(err);
-      const d=document.getElementById('error');
-      d.textContent='⚠️ '+err.message;
-      d.hidden=false;
+    /* Cards */
+    const cardsDiv=document.getElementById('cards');
+    function buildCards(set,highlightKey){
+      cardsDiv.innerHTML=set.map(o=>{
+        const key=`${o['#']}‖${o['ZONA']}`;
+        return `<div class="card ${key===highlightKey?'highlight':''}">
+          <h2>#${o['#']} – ${o['ZONA']}</h2>
+          <p><strong>Maestro:</strong> ${o['MAESTRO']}</p>
+          <p><strong>Asistente:</strong> ${o['ASISTENTE']}</p>
+          <p class="dir"><strong>Dirección:</strong><br>${String(o['DIRECCION']).replace(/\n/g,'<br>')}</p>
+          <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p>
+          <p><strong>Idioma:</strong> ${o['IDIOMA']}</p>
+          <p><strong>Teléfono:</strong> ${o['TELEFONO']}</p>
+        </div>`}).join('');
     }
-  })();
-  </script>
+    buildCards(rows);
+
+    /* filter */
+    function applyFilter(){
+      const v=sel.value;
+      const filtered=v?rows.filter(r=>r[header[zonaIdx]]===v):rows;
+      table.clear().rows.add(filtered).draw();table.columns.adjust();
+      buildCards(filtered);
+      document.getElementById('nearest').textContent='';
+    }
+    sel.addEventListener('change',applyFilter);
+
+    /* nearest search */
+    const home=document.getElementById('homeInput'),btn=document.getElementById('searchBtn'),nearestDiv=document.getElementById('nearest');
+    btn.addEventListener('click',async()=>{
+      const addr=home.value.trim();if(!addr)return;
+      btn.disabled=true;nearestDiv.textContent='Buscando...';try{
+        const {lat:latH,lon:lonH}=await geocode(addr);
+        let best=null,minKm=1e9;
+        for(const r of rows){
+          const dir=r['DIRECCION'];if(!dir)continue;
+          const {lat,lon}=await geocode(dir);
+          const km=haversine(latH,lonH,lat,lon);
+          if(km<minKm){minKm=km;best=r;}
+        }
+        if(!best) throw new Error('No se encontró dirección válida');
+        const min= Math.round((minKm/48)*60); // 48 km/h ≈ 30 mph
+        nearestDiv.textContent=`≈ ${minKm.toFixed(1)} km ( ${min} min estimados ) a la célula más cercana (#${best['#']} – ${best['ZONA']})`;
+        /* highlight */
+        const key=`${best['#']}‖${best['ZONA']}`;
+        buildCards(sel.value?rows.filter(r=>r['ZONA']===sel.value):rows,key);
+        /* highlight on desktop table */
+        table.rows().every(function(){const d=this.data();const match=d['#']==best['#']&&d['ZONA']==best['ZONA'];$(this.node()).toggleClass('highlight',match)});
+      }catch(e){nearestDiv.textContent='Error: '+e.message;}
+      btn.disabled=false;
+    });
+
+  }catch(err){
+    console.error(err);const d=document.getElementById('error');d.textContent='⚠️ '+err.message;d.hidden=false;
+  }
+})();
+</script>
 </body>
 </html>
