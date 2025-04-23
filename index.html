@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8"/>
 <title>Células de Crecimiento | Zona</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
 <style>
-/* ---------- layout ---------- */
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa;overflow:hidden}
 header.banner img{width:100%;max-height:25vh;object-fit:cover;display:block}
 
-/* controls bar */
+/* ─── controls bar ─── */
 .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
 #zonaSelect{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
 .addr-label{white-space:nowrap;font-weight:600}
@@ -22,7 +21,7 @@ header.banner img{width:100%;max-height:25vh;object-fit:cover;display:block}
 #searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
 #searchBtn:disabled{opacity:.5;cursor:not-allowed}
 
-/* desktop table area */
+/* ─── table / cards ─── */
 .table-wrapper{height:calc(75vh - 3rem);overflow:auto;padding:0 2rem 1rem}
 table.dataTable{border:2px solid #13284b;border-collapse:collapse;width:100%;table-layout:fixed}
 table.dataTable th,table.dataTable td{word-wrap:break-word;white-space:normal}
@@ -31,7 +30,6 @@ table.dataTable tbody td:nth-child(1){background:#eeeeee;font-weight:700;text-al
 table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px 4px}
 
-/* mobile card view */
 .cards{display:none;padding:0 1rem 2rem;overflow:auto;height:calc(75vh - 3rem)}
 .card{border:1px solid #ccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .card.highlight{border:2px solid #2d57a3}
@@ -68,96 +66,130 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 <div id="cards" class="cards"></div>
 <div id="error" hidden></div>
 
-<!-- Google Maps JS (Places library) -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places"></script>
+<!-- Maps JS API with Places library -->
+<script async defer
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=initApp">
+</script>
 
 <script src="./xlsx.full.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
 <script>
-const API_KEY='AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A';   // Google key
-const geoCache=new Map();                                 // addr → {lat,lng}
+/* Google key once here for clarity (already baked into script tag) */
+const API_KEY='AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A';
+const geoCache=new Map();   // addr → {lat,lng}
 
-(async () => {
-  /* ------- helpers ------- */
-  async function geocode(addr){
-    if(geoCache.has(addr)) return geoCache.get(addr);
-    const u=`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${API_KEY}`;
-    const j=await fetch(u).then(r=>r.json());
-    if(j.status!=='OK'){geoCache.set(addr,null);return null;}
-    const loc=j.results[0].geometry.location; geoCache.set(addr,loc);return loc;
-  }
-  async function driveSeconds(orig,dest){
-    const u=`https://maps.googleapis.com/maps/api/distancematrix/json?origins=${orig.lat},${orig.lng}&destinations=${dest.lat},${dest.lng}&mode=driving&key=${API_KEY}`;
-    const j=await fetch(u).then(r=>r.json());
-    if(j.status!=='OK'||j.rows[0].elements[0].status!=='OK') return null;
-    return j.rows[0].elements[0].duration.value;
-  }
+let geocoder, distSvc;      // set inside initApp()
 
-  /* ------- load Excel ------- */
-  const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
-  const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
-  const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
-  const header=arr[0].map(h=>String(h).trim());
-  const rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
-  const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA'), numIdx=header.findIndex(h=>h.trim()==='#');
+function geocodeAddr(addr){
+  if(geoCache.has(addr)) return geoCache.get(addr);
+  return new Promise(res=>{
+    geocoder.geocode({address:addr},(r,status)=>{
+      const loc = status==='OK' ? {lat:r[0].geometry.location.lat(),lng:r[0].geometry.location.lng()} : null;
+      geoCache.set(addr,loc); res(loc);
+    });
+  });
+}
 
-  /* dropdown & table */
-  const sel=document.getElementById('zonaSelect');
+function distanceSeconds(origin,destination){
+  return new Promise(res=>{
+    distSvc.getDistanceMatrix({
+      origins:[new google.maps.LatLng(origin.lat,origin.lng)],
+      destinations:[new google.maps.LatLng(destination.lat,destination.lng)],
+      travelMode:'DRIVING'
+    },(dmStatus,status)=>{
+      res(status==='OK' && dmStatus.rows[0].elements[0].status==='OK'
+          ? dmStatus.rows[0].elements[0].duration.value : null);
+    });
+  });
+}
+
+/* ============  main app entry (called by Maps JS callback) ============ */
+async function initApp(){
+  geocoder = new google.maps.Geocoder();
+  distSvc  = new google.maps.DistanceMatrixService();
+
+  /* load Excel */
+  const wbData = await fetch('celulas.xlsx').then(r=>r.arrayBuffer());
+  const wb = XLSX.read(wbData,{type:'array'});
+  const sh = wb.Sheets['Consolidado'] ?? wb.Sheets[wb.SheetNames[0]];
+  const arr = XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+  const header = arr[0].map(h=>String(h).trim());
+  const rows = arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
+  const zonaIdx = header.findIndex(h=>h.toUpperCase()==='ZONA'),
+        numIdx  = header.findIndex(h=>h.trim()==='#');
+
+  /* dropdown & DataTable */
+  const sel = document.getElementById('zonaSelect');
   [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort().forEach(z=>sel.add(new Option(z,z)));
 
-  const table=new DataTable('#tabla',{data:rows,columns:header.map(h=>({title:h,data:h})),
-    order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10,scrollY:'100%',scrollCollapse:true,autoWidth:false,
-    language:{paginate:{previous:'‹',next:'›'}}});
+  const table = new DataTable('#tabla',{
+    data:rows,
+    columns:header.map(h=>({title:h,data:h})),
+    order:[[numIdx,'asc'],[zonaIdx,'asc']],
+    pageLength:10,scrollY:'100%',scrollCollapse:true,autoWidth:false,
+    language:{paginate:{previous:'‹',next:'›'}}
+  });
   table.columns.adjust();
 
-  const cards=document.getElementById('cards');
-  const render=(set,hi)=>cards.innerHTML=set.map(o=>{
-    const k=`${o['#']}‖${o['ZONA']}`;return`
-      <div class="card ${k===hi?'highlight':''}">
-        <h2>#${o['#']} – ${o['ZONA']}</h2>
-        <p><strong>Maestro:</strong> ${o['MAESTRO']}</p>
-        <p><strong>Asistente:</strong> ${o['ASISTENTE']}</p>
-        <p><strong>Dirección:</strong><br>${String(o['DIRECCION']).replace(/\n/g,'<br>')}</p>
-        <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p>
-        <p><strong>Idioma:</strong> ${o['IDIOMA']}</p>
-        <p><strong>Teléfono:</strong> ${o['TELEFONO']}</p>
-      </div>`;}).join('');
+  const cards = document.getElementById('cards');
+  const render = (set,hi)=>cards.innerHTML=set.map(o=>{
+    const key=`${o['#']}‖${o['ZONA']}`;
+    return `<div class="card ${key===hi?'highlight':''}">
+      <h2>#${o['#']} – ${o['ZONA']}</h2>
+      <p><strong>Maestro:</strong> ${o['MAESTRO']}</p>
+      <p><strong>Asistente:</strong> ${o['ASISTENTE']}</p>
+      <p><strong>Dirección:</strong><br>${String(o['DIRECCION']).replace(/\n/g,'<br>')}</p>
+      <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p>
+      <p><strong>Idioma:</strong> ${o['IDIOMA']}</p>
+      <p><strong>Teléfono:</strong> ${o['TELEFONO']}</p>
+    </div>`;}).join('');
   render(rows);
 
-  sel.addEventListener('change',()=>{const v=sel.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
-    table.clear().rows.add(f).draw();table.columns.adjust();render(f);document.getElementById('nearest').textContent='';});
+  sel.addEventListener('change',()=>{
+    const v=sel.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
+    table.clear().rows.add(f).draw();table.columns.adjust();
+    render(f);document.getElementById('nearest').textContent='';
+  });
 
-  /* ------- Places Autocomplete ------- */
-  const input=document.getElementById('homeInput'),btn=document.getElementById('searchBtn'),out=document.getElementById('nearest');
+  /*  autocomplete & nearest search */
+  const input=document.getElementById('homeInput'), btn=document.getElementById('searchBtn'), out=document.getElementById('nearest');
   let homePos=null;
-  const ac=new google.maps.places.Autocomplete(input,{types:['geocode']});
-  ac.addListener('place_changed',()=>{const p=ac.getPlace();homePos=p.geometry?{lat:p.geometry.location.lat(),lng:p.geometry.location.lng()}:null;});
+  new google.maps.places.Autocomplete(input,{types:['geocode']})
+    .addListener('place_changed',function(){
+      const plc=this.getPlace();
+      homePos = plc.geometry ? {lat:plc.geometry.location.lat(),lng:plc.geometry.location.lng()} : null;
+    });
 
-  /* ------- nearest search ------- */
   btn.addEventListener('click',async()=>{
-    const addr=input.value.trim(); if(!addr)return;
-    btn.disabled=true;out.textContent='Buscando...';
+    const raw=input.value.trim(); if(!raw) return;
+    btn.disabled=true; out.textContent='Buscando...';
     try{
-      if(!homePos) homePos=await geocode(addr); if(!homePos) throw new Error('No se pudo geocodificar tu dirección');
-      let best=null,min=1e12;
+      if(!homePos) homePos=await geocodeAddr(raw);
+      if(!homePos) throw new Error('No se pudo geocodificar tu dirección');
+
+      let best=null, bestSec=1e12;
       for(const r of rows){
-        let d=r['DIRECCION']||''; const dash=d.indexOf('-'); if(dash!==-1) d=d.slice(dash+1).trim();
-        const dest=await geocode(d); if(!dest) continue;
-        const sec=await driveSeconds(homePos,dest); if(sec==null) continue;
-        if(sec<min){min=sec;best=r;}
+        let addr = r['DIRECCION']||''; const dash=addr.indexOf('-'); if(dash!==-1) addr=addr.slice(dash+1).trim();
+        const dest=await geocodeAddr(addr); if(!dest) continue;
+        const sec=await distanceSeconds(homePos,dest); if(sec==null) continue;
+        if(sec<bestSec){bestSec=sec;best=r;}
       }
       if(!best) throw new Error('No se pudo calcular la distancia');
-      const mins=Math.round(min/60);
+      const mins=Math.round(bestSec/60);
       out.textContent=`≈ ${mins} min (Google) a la célula más cercana (#${best['#']} – ${best['ZONA']})`;
-      const hi=`${best['#']}‖${best['ZONA']}`; render(sel.value?rows.filter(r=>r['ZONA']===sel.value):rows,hi);
-      table.rows().every(function(){const d=this.data();$(this.node()).toggleClass('highlight',d['#']==best['#']&&d['ZONA']==best['ZONA']);});
+
+      const hi=`${best['#']}‖${best['ZONA']}`;
+      const current=sel.value?rows.filter(r=>r['ZONA']===sel.value):rows;
+      render(current,hi);
+      table.rows().every(function(){
+        const d=this.data();$(this.node()).toggleClass('highlight',d['#']==best['#']&&d['ZONA']==best['ZONA']);
+      });
     }catch(e){out.textContent='Error: '+e.message;}
     btn.disabled=false;
   });
-
-})().catch(err=>{console.error(err);const d=document.getElementById('error');d.textContent='⚠️ '+err.message;d.hidden=false});
+}
 </script>
 </body>
 </html>
