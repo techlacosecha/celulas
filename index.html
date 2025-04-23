@@ -60,7 +60,7 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 <div id="cards" class="cards"></div>
 <div id="error" hidden></div>
 
-<!-- Google Maps JS with Places -->
+<!-- Google Maps JS w/ Places -->
 <script async defer
   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=initApp"></script>
 
@@ -69,106 +69,82 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
 <script>
-const geoCache=new Map();  let geocoder,distSvc;
-
-/* Spanish & English day map -> JS weekday index */
-const dayMap={'DOMINGO':0,'SUNDAY':0,'LUNES':1,'MONDAY':1,'MARTES':2,'TUESDAY':2,
-  'MIERCOLES':3,'MIÉRCOLES':3,'WEDNESDAY':3,'JUEVES':4,'THURSDAY':4,
-  'VIERNES':5,'FRIDAY':5,'SABADO':6,'SÁBADO':6,'SATURDAY':6};
-
-function nextDate(dia,hora){
-  const [h,m]=hora.split(':').map(Number);
-  const dow=dayMap[dia.toUpperCase()]??0;
-  const now=new Date(); let d=new Date(now);
-  d.setHours(h,m,0,0);
-  let diff=(dow-d.getDay()+7)%7; if(diff===0&&d<=now)diff=7;
-  d.setDate(d.getDate()+diff); return d;
-}
-
-function gc(addr){
-  if(geoCache.has(addr))return geoCache.get(addr);
-  return new Promise(res=>geocoder.geocode({address:addr},(r,s)=>{
-    const loc=s==='OK'?{lat:r[0].geometry.location.lat(),lng:r[0].geometry.location.lng()}:null;
-    geoCache.set(addr,loc); res(loc);
-  }));
-}
-
-function driveSeconds(orig,dest,when){
+/* ---------- Maps helpers ---------- */
+let geocoder,distSvc; const cache=new Map();
+function gc(addr){if(cache.has(addr))return cache.get(addr);
+  return new Promise(r=>geocoder.geocode({address:addr},(re,st)=>{
+    const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
+    cache.set(addr,loc);r(loc);}));}
+function dm(o,d,t){
   return new Promise(done=>distSvc.getDistanceMatrix({
-    origins:[new google.maps.LatLng(orig.lat,orig.lng)],
-    destinations:[new google.maps.LatLng(dest.lat,dest.lng)],
-    travelMode:'DRIVING',
-    drivingOptions:{departureTime:when,trafficModel:'best_guess'}
-  },(dm,s)=>done(s==='OK'&&dm.rows[0].elements[0].status==='OK'
-      ? dm.rows[0].elements[0].duration_in_traffic.value : null)));
-}
+    origins:[new google.maps.LatLng(o.lat,o.lng)],
+    destinations:[new google.maps.LatLng(d.lat,d.lng)],
+    travelMode:'DRIVING',drivingOptions:{departureTime:t,trafficModel:'best_guess'}
+  },(res,st)=>done(st==='OK'&&res.rows[0].elements[0].status==='OK'
+    ?res.rows[0].elements[0].duration_in_traffic.value:null)));}
+
+const dow={'DOMINGO':0,'SUNDAY':0,'LUNES':1,'MONDAY':1,'MARTES':2,'TUESDAY':2,'MIERCOLES':3,'MIÉRCOLES':3,'WEDNESDAY':3,
+           'JUEVES':4,'THURSDAY':4,'VIERNES':5,'FRIDAY':5,'SABADO':6,'SÁBADO':6,'SATURDAY':6};
+function nextDate(dia,hora){const[p,h]=hora.split(':').map(Number);const d=new Date();d.setHours(p,h,0,0);
+  let diff=(dow[dia.toUpperCase()]??0-d.getDay()+7)%7;if(!diff&&d<=Date.now())diff=7;d.setDate(d.getDate()+diff);return d;}
 
 async function initApp(){
-  geocoder=new google.maps.Geocoder();
-  distSvc =new google.maps.DistanceMatrixService();
+  geocoder=new google.maps.Geocoder();distSvc=new google.maps.DistanceMatrixService();
 
-  /* Load sheet */
+  /* load sheet */
   const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
   const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
   const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
   const header=arr[0].map(h=>String(h).trim());
   const rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
-  const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA'),
-        numIdx =header.findIndex(h=>h.trim()==='#');
+  const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA'),numIdx=header.findIndex(h=>h.trim()==='#');
 
-  /* dropdown + table */
-  const sel=document.getElementById('zonaSelect');
+  /* UI */
+  const sel=document.getElementById('zonaSelect'),out=document.getElementById('nearest');
   [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort().forEach(z=>sel.add(new Option(z,z)));
-
   const table=new DataTable('#tabla',{data:rows,columns:header.map(h=>({title:h,data:h})),
-    order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10,scrollY:'100%',scrollCollapse:true,autoWidth:false,
-    language:{paginate:{previous:'‹',next:'›'}}}); table.columns.adjust();
-
-  const cards=document.getElementById('cards');
-  const render=s=>cards.innerHTML=s.map(o=>`
+    order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10,scrollY:'100%',scrollCollapse:true});
+  const cards=d=>document.getElementById('cards').innerHTML=d.map(o=>`
     <div class="card"><h2>#${o['#']} – ${o['ZONA']}</h2>
-      <p><strong>Dirección:</strong> ${o['DIRECCION']}</p>
-      <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p>
-      <p><strong>Maestro:</strong> ${o['MAESTRO']}</p></div>`).join('');
-  render(rows);
+    <p><strong>Dirección:</strong> ${o['DIRECCION']}</p>
+    <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p></div>`).join('');
+  cards(rows);
 
   sel.addEventListener('change',()=>{const v=sel.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
-    table.clear().rows.add(f).draw();table.columns.adjust();render(f);document.getElementById('nearest').textContent='';});
+    table.clear().rows.add(f).draw();cards(f);out.textContent='';showAll=true;});
 
-  /* autocomplete & search */
-  const input=document.getElementById('homeInput'),btn=document.getElementById('searchBtn'),out=document.getElementById('nearest');
-  let home=null;
-  new google.maps.places.Autocomplete(input,{types:['geocode']})
+  /* autocomplete + search */
+  let home=null,showAll=true;
+  new google.maps.places.Autocomplete(homeInput,{types:['geocode']})
     .addListener('place_changed',function(){const p=this.getPlace();
       home=p.geometry?{lat:p.geometry.location.lat(),lng:p.geometry.location.lng()}:null;});
-
-  btn.addEventListener('click',async()=>{
-    const raw=input.value.trim(); if(!raw)return;
-    btn.disabled=true; out.textContent='Buscando...';
+  searchBtn.addEventListener('click',async()=>{
+    const raw=homeInput.value.trim();if(!raw)return;
+    searchBtn.disabled=true;out.textContent='Buscando...';
     try{
-      if(!home)home=await gc(raw); if(!home)throw new Error('No se pudo geocodificar');
+      if(!home)home=await gc(raw);if(!home)throw new Error('No se pudo geocodificar');
       /* nearest now */
-      let best=null,nowSec=1e12;
+      let best=null,min=1e12;
       for(const r of rows){
         let a=r['DIRECCION']||'';const idx=a.indexOf('-');if(idx!==-1)a=a.slice(idx+1).trim();
-        const dest=await gc(a); if(!dest)continue;
-        const s=await driveSeconds(home,dest,new Date()); if(s==null)continue;
-        if(s<nowSec){nowSec=s;best=r;}
+        const d=await gc(a);if(!d)continue;
+        const s=await dm(home,d,new Date());if(s==null)continue;
+        if(s<min){min=s;best=r;}
       }
       if(!best)throw new Error('No se encontró destino');
-      /* time at schedule */
+      /* ETA at schedule */
       const sched=nextDate(best['DIA'],best['HORA']);
-      let addr=best['DIRECCION'];const cut=addr.indexOf('-');if(cut!==-1)addr=addr.slice(cut+1).trim();
-      const dest=await gc(addr);
-      const secSched=await driveSeconds(home,dest,sched);
-      const minSched=Math.round(secSched/60);
+      let a=best['DIRECCION'];const cut=a.indexOf('-');if(cut!==-1)a=a.slice(cut+1).trim();
+      const dest=await gc(a);
+      const sec=await dm(home,dest,sched);const mins=Math.round(sec/60);
       const schedStr=sched.toLocaleString('es-ES',{weekday:'long',hour:'numeric',minute:'2-digit'});
 
-      out.textContent=`≈ ${minSched} min de manejo para llegar el ${schedStr}`;
+      out.textContent=`≈ ${mins} min de manejo para llegar el ${schedStr}`;
+
       /* show only nearest */
-      table.clear().rows.add([best]).draw();table.columns.adjust();render([best]);
+      table.clear().rows.add([best]).draw();cards([best]);showAll=false;
     }catch(e){out.textContent='Error: '+e.message;}
-    btn.disabled=false;
+    searchBtn.disabled=false;
   });
 }
 </script>
