@@ -21,35 +21,38 @@
     .controls{margin:1.5rem 2rem;max-width:100vw;white-space:nowrap}
     #zonaSelect{margin-left:.5rem;padding:.35rem .6rem;font-size:1rem}
 
-    /* table wrapper for fallback horizontal scroll */
+    /* ---------- desktop table ---------- */
     .table-wrapper{overflow-x:auto;padding:0 2rem 2rem 2rem}
-
-    /* ---------- DataTable theme ---------- */
     table.dataTable{
-      border:2px solid #13284b;
-      border-collapse:collapse;
-      width:100%;
-      table-layout:auto;        /* let browser size columns */
+      border:2px solid #13284b;border-collapse:collapse;width:100%;table-layout:auto
     }
-    /* let very long words/addresses wrap */
-    table.dataTable th, table.dataTable td{
-      word-break:break-word;
-      white-space:normal;
-    }
-
+    table.dataTable th,table.dataTable td{word-break:break-word;white-space:normal}
     table.dataTable thead th{
-      background:#2d57a3;color:#fff;border:1px solid #13284b;
-      font-weight:700;text-align:center
+      background:#2d57a3;color:#fff;border:1px solid #13284b;font-weight:700;text-align:center
     }
-    /* "#" column */
     table.dataTable tbody td:nth-child(1){
       background:#eeeeee;font-weight:700;text-align:center
     }
-    /* zebra striping */
     table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
-    /* grid + padding */
     table.dataTable tbody td{
       border:1px solid #cccccc;vertical-align:top;padding:6px 4px
+    }
+
+    /* ---------- mobile card view ---------- */
+    .cards{display:none;padding:0 1rem 2rem}
+    .card{
+      border:1px solid #cccccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;
+      box-shadow:0 1px 3px rgba(0,0,0,.06)
+    }
+    .card h2{margin:0 0 .5rem;font-size:1.15rem}
+    .card p{margin:.25rem 0;font-size:.95rem;line-height:1.25}
+    .card .dir{margin-top:.5rem}
+
+    /* ---------- switch at ≤ 900 px ---------- */
+    @media (max-width:900px){
+      .table-wrapper{display:none}
+      .cards{display:block}
+      .controls{margin:1rem 1rem}
     }
 
     #error{color:#c00;margin:1rem 2rem 0;font-weight:bold}
@@ -65,15 +68,16 @@
   <!-- filter -->
   <div class="controls">
     <label for="zonaSelect"><strong>Zona:</strong></label>
-    <select id="zonaSelect">
-      <option value="">— Todas —</option>
-    </select>
+    <select id="zonaSelect"><option value="">— Todas —</option></select>
   </div>
 
-  <!-- table -->
+  <!-- desktop table -->
   <div class="table-wrapper">
     <table id="tabla" class="display"></table>
   </div>
+
+  <!-- mobile cards -->
+  <div id="cards" class="cards"></div>
 
   <div id="error" hidden></div>
 
@@ -89,7 +93,7 @@
     const sheetName    = 'Consolidado';
 
     try {
-      /* fetch + parse workbook */
+      /* fetch + parse */
       const buf = await fetch(workbookPath).then(r=>{
         if(!r.ok) throw new Error('No se encontró '+workbookPath);
         return r.arrayBuffer();
@@ -105,13 +109,13 @@
         const o={}; header.forEach((h,i)=>o[h]=r[i]); return o;
       });
 
-      /* build dropdown */
+      /* dropdown */
       const zonaIdx = header.findIndex(h=>h.toUpperCase()==='ZONA');
       const zonas   = [...new Set(rows.map(r=>r[header[zonaIdx]]).filter(Boolean))].sort();
-      const sel     = document.getElementById('zonaSelect');
+      const sel=document.getElementById('zonaSelect');
       zonas.forEach(z=>sel.add(new Option(z,z)));
 
-      /* create DataTable */
+      /* desktop DataTable */
       const table = new DataTable('#tabla',{
         data:rows,
         columns:header.map(h=>({title:h,data:h})),
@@ -122,13 +126,31 @@
           paginate:{previous:'‹', next:'›'}
         }
       });
-      table.columns.adjust();   // recalc widths once after load
+      table.columns.adjust();
 
-      /* filter logic */
+      /* mobile card builder */
+      const cardsDiv = document.getElementById('cards');
+      function buildCards(dataset){
+        cardsDiv.innerHTML = dataset.map(obj=>`
+          <div class="card">
+            <h2>#${obj['#'] ?? ''} – ${obj[header[zonaIdx]]}</h2>
+            <p><strong>Maestro:</strong> ${obj['MAESTRO']||''}</p>
+            <p><strong>Asistente:</strong> ${obj['ASISTENTE']||''}</p>
+            <p class="dir"><strong>Dirección:</strong><br>${String(obj['DIRECCION']||'').replace(/\n/g,'<br>')}</p>
+            <p><strong>Día / Hora:</strong> ${obj['DIA']||''} ${obj['HORA']||''}</p>
+            <p><strong>Idioma:</strong> ${obj['IDIOMA']||''}</p>
+            <p><strong>Teléfono:</strong> ${obj['TELEFONO']||''}</p>
+          </div>
+        `).join('');
+      }
+      buildCards(rows);
+
+      /* sync filter to both views */
       sel.addEventListener('change',e=>{
         const v=e.target.value;
         const filtered=v?rows.filter(r=>r[header[zonaIdx]]===v):rows;
         table.clear().rows.add(filtered).draw();
+        buildCards(filtered);
       });
 
     } catch(err){
