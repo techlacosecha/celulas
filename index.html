@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <title>Células de Crecimiento | Zona</title>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
 <style>
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa;overflow:hidden}
@@ -60,7 +60,7 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 <div id="cards" class="cards"></div>
 <div id="error" hidden></div>
 
-<!-- Maps JS w/ Places -->
+<!-- Google Maps JS with Places -->
 <script async defer
   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=initApp"></script>
 
@@ -69,63 +69,60 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
 <script>
-const geoCache=new Map();
-let geocoder,distSvc;
+const geoCache=new Map();  let geocoder,distSvc;
 
-/* map Spanish days to JS weekday index */
+/* Spanish & English day map -> JS weekday index */
 const dayMap={'DOMINGO':0,'SUNDAY':0,'LUNES':1,'MONDAY':1,'MARTES':2,'TUESDAY':2,
-  'MIERCOLES':3,'MIÉRCOLES':3,'WEDNESDAY':3,'JUEVES':4,'THURSDAY':4,'VIERNES':5,'FRIDAY':5,
-  'SABADO':6,'SÁBADO':6,'SATURDAY':6};
+  'MIERCOLES':3,'MIÉRCOLES':3,'WEDNESDAY':3,'JUEVES':4,'THURSDAY':4,
+  'VIERNES':5,'FRIDAY':5,'SABADO':6,'SÁBADO':6,'SATURDAY':6};
 
-function nextOccurrence(dia,hora){
+function nextDate(dia,hora){
   const [h,m]=hora.split(':').map(Number);
-  const target=dayMap[dia.toUpperCase()]??0;
-  const now=new Date();
-  let d=new Date(now);d.setHours(h,m,0,0);
-  let diff=(target-d.getDay()+7)%7;
-  if(diff===0&&d<now)diff=7;
-  d.setDate(d.getDate()+diff);
-  return d;
+  const dow=dayMap[dia.toUpperCase()]??0;
+  const now=new Date(); let d=new Date(now);
+  d.setHours(h,m,0,0);
+  let diff=(dow-d.getDay()+7)%7; if(diff===0&&d<=now)diff=7;
+  d.setDate(d.getDate()+diff); return d;
 }
 
-function geocode(addr){
+function gc(addr){
   if(geoCache.has(addr))return geoCache.get(addr);
-  return new Promise(r=>geocoder.geocode({address:addr},(res,s)=>{
-    const loc=s==='OK'?{lat:res[0].geometry.location.lat(),lng:res[0].geometry.location.lng()}:null;
-    geoCache.set(addr,loc);r(loc);
+  return new Promise(res=>geocoder.geocode({address:addr},(r,s)=>{
+    const loc=s==='OK'?{lat:r[0].geometry.location.lat(),lng:r[0].geometry.location.lng()}:null;
+    geoCache.set(addr,loc); res(loc);
   }));
 }
 
-function driveTime(orig,dest,departure){
-  return new Promise(res=>{
-    distSvc.getDistanceMatrix({
-      origins:[new google.maps.LatLng(orig.lat,orig.lng)],
-      destinations:[new google.maps.LatLng(dest.lat,dest.lng)],
-      travelMode:'DRIVING',
-      drivingOptions:{departureTime:departure,trafficModel:'best_guess'}
-    },(dm,s)=>res(s==='OK'&&dm.rows[0].elements[0].status==='OK'
-      ? dm.rows[0].elements[0].duration_in_traffic.value
-      : null));
-  });
+function driveSeconds(orig,dest,when){
+  return new Promise(done=>distSvc.getDistanceMatrix({
+    origins:[new google.maps.LatLng(orig.lat,orig.lng)],
+    destinations:[new google.maps.LatLng(dest.lat,dest.lng)],
+    travelMode:'DRIVING',
+    drivingOptions:{departureTime:when,trafficModel:'best_guess'}
+  },(dm,s)=>done(s==='OK'&&dm.rows[0].elements[0].status==='OK'
+      ? dm.rows[0].elements[0].duration_in_traffic.value : null)));
 }
 
 async function initApp(){
   geocoder=new google.maps.Geocoder();
   distSvc =new google.maps.DistanceMatrixService();
 
+  /* Load sheet */
   const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
   const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
   const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
   const header=arr[0].map(h=>String(h).trim());
   const rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
-  const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA'),numIdx=header.findIndex(h=>h.trim()==='#');
+  const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA'),
+        numIdx =header.findIndex(h=>h.trim()==='#');
 
+  /* dropdown + table */
   const sel=document.getElementById('zonaSelect');
   [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort().forEach(z=>sel.add(new Option(z,z)));
 
   const table=new DataTable('#tabla',{data:rows,columns:header.map(h=>({title:h,data:h})),
-    order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10,scrollY:'100%',scrollCollapse:true,autoWidth:false});
-  table.columns.adjust();
+    order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10,scrollY:'100%',scrollCollapse:true,autoWidth:false,
+    language:{paginate:{previous:'‹',next:'›'}}}); table.columns.adjust();
 
   const cards=document.getElementById('cards');
   const render=s=>cards.innerHTML=s.map(o=>`
@@ -138,36 +135,37 @@ async function initApp(){
   sel.addEventListener('change',()=>{const v=sel.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
     table.clear().rows.add(f).draw();table.columns.adjust();render(f);document.getElementById('nearest').textContent='';});
 
+  /* autocomplete & search */
   const input=document.getElementById('homeInput'),btn=document.getElementById('searchBtn'),out=document.getElementById('nearest');
   let home=null;
   new google.maps.places.Autocomplete(input,{types:['geocode']})
-    .addListener('place_changed',function(){
-      const plc=this.getPlace();home=plc.geometry?{lat:plc.geometry.location.lat(),lng:plc.geometry.location.lng()}:null;
-    });
+    .addListener('place_changed',function(){const p=this.getPlace();
+      home=p.geometry?{lat:p.geometry.location.lat(),lng:p.geometry.location.lng()}:null;});
 
   btn.addEventListener('click',async()=>{
-    const raw=input.value.trim();if(!raw)return;
-    btn.disabled=true;out.textContent='Buscando...';
+    const raw=input.value.trim(); if(!raw)return;
+    btn.disabled=true; out.textContent='Buscando...';
     try{
-      if(!home)home=await geocode(raw);if(!home)throw new Error('No se pudo geocodificar');
-      let best=null,minSec=1e12;
+      if(!home)home=await gc(raw); if(!home)throw new Error('No se pudo geocodificar');
+      /* nearest now */
+      let best=null,nowSec=1e12;
       for(const r of rows){
         let a=r['DIRECCION']||'';const idx=a.indexOf('-');if(idx!==-1)a=a.slice(idx+1).trim();
-        const dest=await geocode(a);if(!dest)continue;
-        const sec=await driveTime(home,dest,new Date());if(sec==null)continue;
-        if(sec<minSec){minSec=sec;best=r;}
+        const dest=await gc(a); if(!dest)continue;
+        const s=await driveSeconds(home,dest,new Date()); if(s==null)continue;
+        if(s<nowSec){nowSec=s;best=r;}
       }
       if(!best)throw new Error('No se encontró destino');
-      /* predicted travel at scheduled time */
-      const sched=nextOccurrence(best['DIA'],best['HORA']);
-      let destAddr=best['DIRECCION'];const cut=destAddr.indexOf('-');if(cut!==-1)destAddr=destAddr.slice(cut+1).trim();
-      const destPos=await geocode(destAddr);
-      const secSched=await driveTime(home,destPos,sched);
-      const mins=Math.round(secSched/60);
+      /* time at schedule */
+      const sched=nextDate(best['DIA'],best['HORA']);
+      let addr=best['DIRECCION'];const cut=addr.indexOf('-');if(cut!==-1)addr=addr.slice(cut+1).trim();
+      const dest=await gc(addr);
+      const secSched=await driveSeconds(home,dest,sched);
+      const minSched=Math.round(secSched/60);
       const schedStr=sched.toLocaleString('es-ES',{weekday:'long',hour:'numeric',minute:'2-digit'});
 
-      out.textContent=`≈ ${mins} min de manejo para llegar el ${schedStr}`;
-
+      out.textContent=`≈ ${minSched} min de manejo para llegar el ${schedStr}`;
+      /* show only nearest */
       table.clear().rows.add([best]).draw();table.columns.adjust();render([best]);
     }catch(e){out.textContent='Error: '+e.message;}
     btn.disabled=false;
