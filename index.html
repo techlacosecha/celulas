@@ -3,35 +3,34 @@
 <head>
 <meta charset="utf-8"/>
 <title>Células de Crecimiento | Zona</title>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/datatables.net-dt@2.0.2/css/dataTables.dataTables.min.css"/>
 <style>
-body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa;overflow:hidden}
-header.banner img{width:100%;max-height:25vh;object-fit:cover;display:block}
+body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
+header.banner img{width:100%;max-height:25vh;object-fit:cover}
 
 .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
 #zonaSelect{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
-.addr-label{white-space:nowrap;font-weight:600}
-#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px;min-width:260px;flex:1 1 260px;max-width:100%}
+.addr-label{font-weight:600}
+#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px;min-width:260px;flex:1 1 260px}
 #homeInput::placeholder{color:#999}
 #searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
 #searchBtn:disabled{opacity:.5;cursor:not-allowed}
 
-.table-wrapper{height:calc(75vh - 3rem);overflow:auto;padding:0 2rem 1rem}
+.table-wrapper{height:65vh;overflow:auto;padding:0 2rem 1.5rem}
 table.dataTable{border:2px solid #13284b;border-collapse:collapse;width:100%;table-layout:fixed}
-table.dataTable th,table.dataTable td{word-wrap:break-word;white-space:normal}
+table.dataTable th,table.dataTable td{word-wrap:break-word}
 table.dataTable thead th{background:#2d57a3;color:#fff;border:1px solid #13284b;font-weight:700;text-align:center}
-table.dataTable tbody td:nth-child(1){background:#eeeeee;font-weight:700;text-align:center}
+table.dataTable tbody td:nth-child(1){background:#eee;font-weight:700;text-align:center}
 table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
-table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px 4px}
+table.dataTable tbody td{border:1px solid #ccc;padding:6px 4px}
 
-.cards{display:none;padding:0 1rem 2rem;overflow:auto;height:calc(75vh - 3rem)}
-.card{border:1px solid #ccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.card h2{margin:0 0 .5rem;font-size:1.15rem}
-.card p{margin:.25rem 0;font-size:.95rem;line-height:1.25}
+.cards{display:none;padding:0 1rem 2rem;overflow:auto;height:65vh}
+.card{border:1px solid #ccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.card h2{margin:.2rem 0 .6rem;font-size:1.15rem}
+.card p{margin:.25rem 0;font-size:.95rem}
 
 @media(max-width:900px){
-  body{overflow:auto}
   .table-wrapper{display:none}
   .cards{display:block}
   .controls{margin:1rem}
@@ -42,15 +41,14 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 </style>
 </head>
 <body>
-<header class="banner"><img src="./header.png" alt="La Cosecha Community Church – Células de Crecimiento por Zona"></header>
+<header class="banner"><img src="./header.png" alt="Células La Cosecha"></header>
 
 <div class="controls">
   <label for="zonaSelect"><strong>Zona:</strong></label>
   <select id="zonaSelect"><option value="">— Todas —</option></select>
 
   <label for="homeInput" class="addr-label">Find nearest address:</label>
-  <input id="homeInput" type="text" placeholder="Home Address" autocomplete="off"/>
-
+  <input id="homeInput" type="text" placeholder="Home Address" autocomplete="off">
   <button id="searchBtn">Search</button>
 </div>
 
@@ -60,109 +58,100 @@ table.dataTable tbody td{border:1px solid #cccccc;vertical-align:top;padding:6px
 <div id="cards" class="cards"></div>
 <div id="error" hidden></div>
 
-<!-- Maps JS (Places) -->
+<!-- Google Maps JS (Places) – callback just sets window.mapsReady = true -->
 <script async defer
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=initApp"></script>
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=()=>{window.mapsReady=true}">
+</script>
 
 <script src="./xlsx.full.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
 <script>
-/* ---------- global helpers ---------- */
-let geocoder, distSvc;
-const geoCache=new Map();
-const dow={'DOMINGO':0,'SUNDAY':0,'LUNES':1,'MONDAY':1,'MARTES':2,'TUESDAY':2,
-  'MIERCOLES':3,'MIÉRCOLES':3,'WEDNESDAY':3,'JUEVES':4,'THURSDAY':4,
-  'VIERNES':5,'FRIDAY':5,'SABADO':6,'SÁBADO':6,'SATURDAY':6};
+/* ---------- constants & helpers ---------- */
+const dayMap={'DOMINGO':0,'SUNDAY':0,'LUNES':1,'MONDAY':1,'MARTES':2,'TUESDAY':2,
+  'MIERCOLES':3,'MIÉRCOLES':3,'WEDNESDAY':3,'JUEVES':4,'THURSDAY':4,'VIERNES':5,'FRIDAY':5,
+  'SABADO':6,'SÁBADO':6,'SATURDAY':6};
 
-function nextDate(dia,hora){
-  const [h,m]=hora.split(':').map(Number);
-  const d=new Date();d.setHours(h,m,0,0);
-  let diff=(dow[dia.toUpperCase()]??0-d.getDay()+7)%7;
-  if(diff===0&&d<=Date.now())diff=7;
-  d.setDate(d.getDate()+diff);return d;
-}
-
-function gc(addr){
-  if(geoCache.has(addr))return geoCache.get(addr);
+const geoCache=new Map(); let geocoder,distSvc;
+function nextDate(dia,hora){const [h,m]=hora.split(':').map(Number);
+  const d=new Date();d.setHours(h,m,0,0);let diff=(dayMap[dia.toUpperCase()]??0-d.getDay()+7)%7;
+  if(diff===0&&d<=Date.now())diff=7;d.setDate(d.getDate()+diff);return d;}
+function gc(addr){if(geoCache.has(addr))return geoCache.get(addr);
   return new Promise(r=>geocoder.geocode({address:addr},(res,st)=>{
     const loc=st==='OK'?{lat:res[0].geometry.location.lat(),lng:res[0].geometry.location.lng()}:null;
-    geoCache.set(addr,loc);r(loc);
-  }));
-}
-
-function driveSec(orig,dest,time){
+    geoCache.set(addr,loc);r(loc);}));}
+function driveSec(o,d,t){
   return new Promise(done=>distSvc.getDistanceMatrix({
-    origins:[new google.maps.LatLng(orig.lat,orig.lng)],
-    destinations:[new google.maps.LatLng(dest.lat,dest.lng)],
+    origins:[new google.maps.LatLng(o.lat,o.lng)],
+    destinations:[new google.maps.LatLng(d.lat,d.lng)],
     travelMode:'DRIVING',
-    drivingOptions:{departureTime:time,trafficModel:'best_guess'}
-  },(dm,st)=>done(st==='OK'&&dm.rows[0].elements[0].status==='OK'
-      ? dm.rows[0].elements[0].duration_in_traffic.value : null)));
+    drivingOptions:{departureTime:t,trafficModel:'best_guess'}
+  },(dm,st)=>{const el=dm && dm.rows[0].elements[0];
+    done(st==='OK'&&el.status==='OK'?(el.duration_in_traffic||el.duration).value:null);}));
 }
 
-/* ---------- main ---------- */
-async function initApp(){
-  geocoder=new google.maps.Geocoder();
-  distSvc =new google.maps.DistanceMatrixService();
-
+/* ---------- main ------------ */
+(async()=>{
+  /* 1. Load Excel & build full UI immediately */
   const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
-  const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
-  const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
-  const header=arr[0].map(h=>String(h).trim());
-  const rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
+  const sheet=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
+  const rowsRaw=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+  const header=rowsRaw[0].map(h=>String(h).trim());
+  const rows=rowsRaw.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
   const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA'),numIdx=header.findIndex(h=>h.trim()==='#');
 
-  const sel=document.getElementById('zonaSelect'), out=document.getElementById('nearest');
-  [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort().forEach(z=>sel.add(new Option(z,z)));
+  const sel=document.getElementById('zonaSelect'); [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort()
+    .forEach(z=>sel.add(new Option(z,z)));
 
-  const table=new DataTable('#tabla',{data:rows,columns:header.map(h=>({title:h,data:h})),
-    order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10,scrollY:'100%',scrollCollapse:true});
+  const table=new DataTable('#tabla',{
+    data:rows,columns:header.map(h=>({title:h,data:h})),
+    order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10,autoWidth:false});
   const cardsDiv=document.getElementById('cards');
-  const renderCards=d=>cardsDiv.innerHTML=d.map(o=>`
+  const renderCards=arr=>cardsDiv.innerHTML=arr.map(o=>`
     <div class="card"><h2>#${o['#']} – ${o['ZONA']}</h2>
       <p><strong>Dirección:</strong> ${o['DIRECCION']}</p>
       <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p></div>`).join('');
   renderCards(rows);
 
   sel.addEventListener('change',()=>{const v=sel.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
-    table.clear().rows.add(f).draw();renderCards(f);out.textContent='';});
+    table.clear().rows.add(f).draw();renderCards(f);nearest.textContent='';showAll=true;});
 
-  const homeInput=document.getElementById('homeInput'), searchBtn=document.getElementById('searchBtn');
-  let home=null;
+  /* 2. Wait for Maps to finish loading, then wire autocomplete & ETA */
+  const waitMaps=()=>new Promise(ok=>{
+    if(window.mapsReady){ok();return;}
+    window.addEventListener('mapsReady',ok,{once:true});});
+  await waitMaps();
+
+  geocoder=new google.maps.Geocoder(); distSvc=new google.maps.DistanceMatrixService();
   new google.maps.places.Autocomplete(homeInput,{types:['geocode']})
-    .addListener('place_changed',function(){const p=this.getPlace();
-      home=p.geometry?{lat:p.geometry.location.lat(),lng:p.geometry.location.lng()}:null;});
+    .addListener('place_changed',function(){const plc=this.getPlace();
+      homePos=plc.geometry?{lat:plc.geometry.location.lat(),lng:plc.geometry.location.lng()}:null;});
 
+  let homePos=null,showAll=true;
   searchBtn.addEventListener('click',async()=>{
     const raw=homeInput.value.trim(); if(!raw)return;
-    searchBtn.disabled=true; out.textContent='Buscando...';
+    searchBtn.disabled=true; nearest.textContent='Buscando...';
     try{
-      if(!home)home=await gc(raw); if(!home)throw new Error('No se pudo geocodificar');
-      /* find nearest */
+      if(!homePos)homePos=await gc(raw); if(!homePos)throw new Error('No se pudo geocodificar');
       let best=null,min=1e12;
       for(const r of rows){
-        let a=r['DIRECCION']||'';const idx=a.indexOf('-');if(idx!==-1)a=a.slice(idx+1).trim();
+        let a=r['DIRECCION']||''; const cut=a.indexOf('-'); if(cut!==-1)a=a.slice(cut+1).trim();
         const dest=await gc(a); if(!dest)continue;
-        const s=await driveSec(home,dest,new Date()); if(s==null)continue;
-        if(s<min){min=s;best=r;}
+        const sec=await driveSec(homePos,dest,new Date()); if(sec!=null&&sec<min){min=sec;best=r;}
       }
       if(!best)throw new Error('No se encontró destino');
 
-      const when=nextDate(best['DIA'],best['HORA']);
-      let a=best['DIRECCION'];const cut=a.indexOf('-');if(cut!==-1)a=a.slice(cut+1).trim();
+      const sched=nextDate(best['DIA'],best['HORA']);
+      let a=best['DIRECCION']; const idx=a.indexOf('-'); if(idx!==-1)a=a.slice(idx+1).trim();
       const dest=await gc(a);
-      const sec=await driveSec(home,dest,when); const mins=Math.round(sec/60);
-      const whenStr=when.toLocaleString('es-ES',{weekday:'long',hour:'numeric',minute:'2-digit'});
+      const sec=await driveSec(homePos,dest,sched); const mins=Math.round(sec/60);
+      nearest.textContent=`≈ ${mins} min de manejo para llegar el ${sched.toLocaleString('es-ES',{weekday:'long',hour:'numeric',minute:'2-digit'})}`;
 
-      out.textContent=`≈ ${mins} min de manejo para llegar el ${whenStr}`;
-
-      table.clear().rows.add([best]).draw();renderCards([best]);
-    }catch(e){out.textContent='Error: '+e.message;}
+      table.clear().rows.add([best]).draw(); renderCards([best]); showAll=false;
+    }catch(e){nearest.textContent='Error: '+e.message;}
     searchBtn.disabled=false;
   });
-}
+})();
 </script>
 </body>
 </html>
