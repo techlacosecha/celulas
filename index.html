@@ -48,8 +48,10 @@ table.dataTable tbody td{border:1px solid #ccc;padding:6px 4px}
 <div id="cards" class="cards"></div>
 <div id="error" hidden></div>
 
-<!-- XLSX + DataTables -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.20.2/dist/xlsx.full.min.js"></script>
+<!-- Local SheetJS copy -->
+<script src="./xlsx.full.min.js"></script>
+
+<!-- DataTables -->
 <script src="https://cdn.jsdelivr.net/npm/datatables.net@2.0.2/js/dataTables.min.js"></script>
 
 <!-- Google Maps JS (Places) -->
@@ -60,39 +62,42 @@ table.dataTable tbody td{border:1px solid #ccc;padding:6px 4px}
 let rows=[],table,cardsDiv,geo,dist,homePos=null;
 const geoCache=new Map();
 
-/* ---------- load Excel & build initial UI ---------- */
+/* ----- build initial table & cards from Excel ----- */
 (async()=>{
-  const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
-  const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
-  const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
-  const header=arr[0].map(h=>String(h).trim());
-  rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
-  const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA'),numIdx=header.findIndex(h=>h.trim()==='#');
+  try{
+    const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
+    const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
+    const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+    const header=arr[0].map(h=>String(h).trim());
+    rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{const o={};header.forEach((h,i)=>o[h]=r[i]);return o});
+    const zonaIdx=header.findIndex(h=>h.toUpperCase()==='ZONA'),numIdx=header.findIndex(h=>h.trim()==='#');
 
-  const sel=document.getElementById('zonaSelect');
-  [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort().forEach(z=>sel.add(new Option(z,z)));
+    const sel=document.getElementById('zonaSelect');
+    [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort().forEach(z=>sel.add(new Option(z,z)));
 
-  table=new DataTable('#tabla',{data:rows,columns:header.map(h=>({title:h,data:h})),
-    order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10});
-  cardsDiv=document.getElementById('cards');
-  renderCards(rows);
+    table=new DataTable('#tabla',{data:rows,columns:header.map(h=>({title:h,data:h})),
+      order:[[numIdx,'asc'],[zonaIdx,'asc']],pageLength:10});
+    cardsDiv=document.getElementById('cards');
+    renderCards(rows);
 
-  sel.addEventListener('change',()=>{document.getElementById('nearest').textContent='';
-    const v=sel.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
-    table.clear().rows.add(f).draw();renderCards(f);});
-})().catch(e=>{document.getElementById('error').hidden=false;document.getElementById('error').textContent=e;});
+    sel.addEventListener('change',()=>{document.getElementById('nearest').textContent='';
+      const v=sel.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
+      table.clear().rows.add(f).draw();renderCards(f);homePos=null;});
+  }catch(e){document.getElementById('error').hidden=false;document.getElementById('error').textContent=e;}
+})();
 
 function renderCards(list){cardsDiv.innerHTML=list.map(o=>`
   <div class="card"><h2>#${o['#']} – ${o['ZONA']}</h2>
     <p><strong>Dirección:</strong> ${o['DIRECCION']}</p>
     <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p></div>`).join('');}
 
-/* ---------- Maps setup ---------- */
+/* ---------- Maps ready ---------- */
 function gmapsReady(){
-  geo=new google.maps.Geocoder(); dist=new google.maps.DistanceMatrixService();
+  geo=new google.maps.Geocoder();
+  dist=new google.maps.DistanceMatrixService();
   new google.maps.places.Autocomplete(homeInput,{types:['geocode']})
-    .addListener('place_changed',function(){const p=this.getPlace();
-      homePos=p.geometry?{lat:p.geometry.location.lat(),lng:p.geometry.location.lng()}:null;});
+    .addListener('place_changed',function(){const plc=this.getPlace();
+      homePos=plc.geometry?{lat:plc.geometry.location.lat(),lng:plc.geometry.location.lng()}:null;});
   searchBtn.addEventListener('click',doSearch);
 }
 
@@ -100,29 +105,29 @@ function gc(addr){if(geoCache.has(addr))return geoCache.get(addr);
   return new Promise(r=>geo.geocode({address:addr},(re,st)=>{const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
     geoCache.set(addr,loc);r(loc);}));}
 function dm(o,d){return new Promise(r=>dist.getDistanceMatrix({
-    origins:[new google.maps.LatLng(o.lat,o.lng)],
-    destinations:[new google.maps.LatLng(d.lat,d.lng)],
-    travelMode:'DRIVING',departureTime:new Date(),trafficModel:'best_guess'
-  },(m,s)=>{const el=m&&m.rows[0].elements[0];r(s==='OK'&&el.status==='OK'?el.duration_in_traffic.value: null);}));}
+  origins:[new google.maps.LatLng(o.lat,o.lng)],
+  destinations:[new google.maps.LatLng(d.lat,d.lng)],
+  travelMode:'DRIVING',
+  drivingOptions:{departureTime:new Date(),trafficModel:'best_guess'}
+},(m,s)=>{const el=m&&m.rows[0].elements[0];
+  r(s==='OK'&&el.status==='OK'?el.duration_in_traffic.value:null);}));}
 
 async function doSearch(){
-  const input=document.getElementById('homeInput').value.trim(); if(!input)return;
-  const btn=document.getElementById('searchBtn'); btn.disabled=true;
-  const nearestP=document.getElementById('nearest'); nearestP.textContent='Buscando...';
+  const addr=document.getElementById('homeInput').value.trim(); if(!addr)return;
+  const btn=document.getElementById('searchBtn'),near=document.getElementById('nearest');
+  btn.disabled=true; near.textContent='Buscando...';
   try{
-    if(!homePos)homePos=await gc(input); if(!homePos)throw Error('No se pudo geocodificar');
+    if(!homePos)homePos=await gc(addr); if(!homePos)throw Error('No se pudo geocodificar');
     let best=null,min=1e12;
     for(const r of rows){
-      let a=r['DIRECCION']||''; const cut=a.indexOf('-'); if(cut!==-1)a=a.slice(cut+1).trim();
+      let a=r['DIRECCION']||'';const cut=a.indexOf('-');if(cut!==-1)a=a.slice(cut+1).trim();
       const dest=await gc(a); if(!dest)continue;
-      const sec=await dm(homePos,dest); if(sec==null||sec>=min)continue;
-      min=sec; best=r;
+      const sec=await dm(homePos,dest); if(sec!=null&&sec<min){min=sec;best=r;}
     }
     if(!best)throw Error('No se encontró destino');
-    const mins=Math.round(min/60);
-    nearestP.textContent=`≈ ${mins} min de manejo hasta la célula más cercana (#${best['#']} – ${best['ZONA']})`;
+    near.textContent=`≈ ${Math.round(min/60)} min de manejo hasta la célula más cercana (#${best['#']} – ${best['ZONA']})`;
     table.clear().rows.add([best]).draw(); renderCards([best]);
-  }catch(e){nearestP.textContent='Error: '+e.message;}
+  }catch(e){near.textContent='Error: '+e.message;}
   btn.disabled=false;
 }
 </script>
