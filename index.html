@@ -142,25 +142,31 @@ function gmapsReady(){
   document.getElementById('searchBtn').addEventListener('click',runSearch);
 }
 
-/* ------------ helpers ------------ */
+/* ---------- helpers ---------- */
 function gc(addr){
-  if(geoCache.has(addr)) return geoCache.get(addr);
-  return new Promise(res=>geocoder.geocode({address:addr},(r,s)=>{
-    const loc=s==='OK'?{lat:r[0].geometry.location.lat(),lng:r[0].geometry.location.lng()}:null;
-    geoCache.set(addr,loc); res(loc);
+  if (geoCache.has(addr)) return geoCache.get(addr);
+  return new Promise(r => geocoder.geocode({address: addr}, (re, st) => {
+    const loc = st === 'OK'
+      ? {lat: re[0].geometry.location.lat(), lng: re[0].geometry.location.lng()}
+      : null;
+    geoCache.set(addr, loc); r(loc);
   }));
 }
-function dm(o,d){
-  return new Promise(res=>distSvc.getDistanceMatrix({
-    origins:[new google.maps.LatLng(o.lat,o.lng)],
-    destinations:[new google.maps.LatLng(d.lat,d.lng)],
-    travelMode:'DRIVING',
-    drivingOptions:{departureTime:new Date(),trafficModel:'BEST_GUESS'}
-  },(m,s)=>{
-    const el=m?.rows[0].elements[0];
-    res(s==='OK'&&el.status==='OK'?(el.duration_in_traffic||el.duration).value:null);
+
+function dm(origin, dest){
+  return new Promise(r => distSvc.getDistanceMatrix({
+    origins:      [new google.maps.LatLng(origin.lat, origin.lng)],
+    destinations: [new google.maps.LatLng(dest.lat,  dest.lng)],
+    travelMode:   'DRIVING',
+    drivingOptions: { departureTime: new Date() }   // ← no trafficModel
+  }, (m, st) => {
+    const el = m?.rows[0].elements[0];
+    r(st === 'OK' && el.status === 'OK'
+        ? (el.duration_in_traffic || el.duration).value
+        : null);
   }));
 }
+
 
 /* ------------ search ------------ */
 async function runSearch(){
