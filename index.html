@@ -5,9 +5,9 @@
   <title>Células de Crecimiento | Zona</title>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
 
-  <!-- ①  DataTables CSS (DT theme) -->
+  <!-- DataTables 1.13 (jQuery build) -->
   <link rel="stylesheet"
-        href="https://cdn.datatables.net/2.0.2/css/jquery.dataTables.min.css"/>
+        href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
 
   <style>
     body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
@@ -61,40 +61,37 @@
   <div id="cards" class="cards"></div>
   <div id="error" hidden></div>
 
-  <!-- ②  SheetJS (local copy) -->
+  <!-- SheetJS (local copy) -->
   <script src="./xlsx.full.min.js"></script>
 
-  <!-- ③  jQuery core -->
+  <!-- jQuery + DataTables 1.13 -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 
-  <!-- ④  DataTables jQuery build -->
-  <script src="https://cdn.datatables.net/2.0.2/js/jquery.dataTables.min.js"></script>
-
-  <!-- ⑤  Google Maps JS (Places) -->
+  <!-- Google Maps JS (Places) -->
   <script async defer
     src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=gmapsReady">
   </script>
 
 <script>
-/* ---------- state ---------- */
-let rows=[],table,cardsDiv,geocoder,distSvc,homePos=null;
+/* ------------ state ------------ */
+let rows=[], table, cardsDiv, geocoder, distSvc, homePos=null;
 const geoCache=new Map();
 
-/* ---------- build table & cards ---------- */
+/* ------------ build table/cards ------------ */
 (async()=>{
   try{
     const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
     const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
     const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
     const head=arr[0].map(h=>String(h).trim());
-
     rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{
       const o={}; head.forEach((h,i)=>o[h]=r[i]); return o;
     });
     const zonaIdx=head.findIndex(h=>h.toUpperCase()==='ZONA'),
           numIdx =head.findIndex(h=>h.trim()==='#');
 
-    $(function(){              // DOM ready
+    $(function(){          // DOM ready
       table=$('#tabla').DataTable({
         data:rows,
         columns:head.map(h=>({title:h,data:h})),
@@ -104,14 +101,16 @@ const geoCache=new Map();
       cardsDiv=document.getElementById('cards');
       renderCards(rows);
 
-      $('#zonaSelect').on('change',e=>{
+      $('#zonaSelect').on('change',function(){
         $('#nearest').text('');
-        const v=e.target.value, f=v?rows.filter(r=>r['ZONA']===v):rows;
-        table.clear().rows.add(f).draw(); renderCards(f); homePos=null;
+        const v=this.value, f=v?rows.filter(r=>r['ZONA']===v):rows;
+        table.clear().rows.add(f).draw();
+        renderCards(f);
+        homePos=null;
       });
     });
-  }catch(err){
-    $('#error').show().text(err);
+  }catch(e){
+    $('#error').show().text(e);
   }
 })();
 
@@ -125,7 +124,7 @@ function renderCards(list){
   `).join('');
 }
 
-/* ---------- Google Maps ready ---------- */
+/* ------------ Google Maps ready ------------ */
 function gmapsReady(){
   geocoder=new google.maps.Geocoder();
   distSvc =new google.maps.DistanceMatrixService();
@@ -134,17 +133,16 @@ function gmapsReady(){
     document.getElementById('homeInput'),{types:['geocode']}
   );
   ac.addListener('place_changed',()=>{
-    const p=ac.getPlace();
-    homePos=p.geometry?{
-      lat:p.geometry.location.lat(),
-      lng:p.geometry.location.lng()
-    }:null;
+    const plc=ac.getPlace();
+    homePos=plc.geometry
+      ? {lat:plc.geometry.location.lat(),lng:plc.geometry.location.lng()}
+      : null;
   });
 
   document.getElementById('searchBtn').addEventListener('click',runSearch);
 }
 
-/* ---------- helpers ---------- */
+/* ------------ helpers ------------ */
 function gc(addr){
   if(geoCache.has(addr)) return geoCache.get(addr);
   return new Promise(res=>geocoder.geocode({address:addr},(r,s)=>{
@@ -158,12 +156,13 @@ function dm(o,d){
     destinations:[new google.maps.LatLng(d.lat,d.lng)],
     travelMode:'DRIVING',
     drivingOptions:{departureTime:new Date(),trafficModel:'best_guess'}
-  },(m,s)=>{const el=m?.rows[0].elements[0];
+  },(m,s)=>{
+    const el=m?.rows[0].elements[0];
     res(s==='OK'&&el.status==='OK'?(el.duration_in_traffic||el.duration).value:null);
   }));
 }
 
-/* ---------- search ---------- */
+/* ------------ search ------------ */
 async function runSearch(){
   const raw=document.getElementById('homeInput').value.trim();
   if(!raw) return;
@@ -173,16 +172,18 @@ async function runSearch(){
   try{
     if(!homePos) homePos=await gc(raw);
     if(!homePos) throw Error('No se pudo geocodificar');
-    let best=null, min=Infinity;
+    let best=null,min=Infinity;
     for(const r of rows){
-      let a=r['DIRECCION']||''; const dash=a.indexOf('-');
-      if(dash!==-1) a=a.slice(dash+1).trim();
+      let a=r['DIRECCION']||'';
+      const idx=a.indexOf('-'); if(idx!==-1) a=a.slice(idx+1).trim();
       const dest=await gc(a); if(!dest) continue;
-      const sec=await dm(homePos,dest); if(sec!==null&&sec<min){min=sec;best=r;}
+      const sec=await dm(homePos,dest);
+      if(sec!==null && sec<min){ min=sec; best=r; }
     }
     if(!best) throw Error('No se encontró destino');
     out.textContent=`≈ ${Math.round(min/60)} min de manejo hasta la célula más cercana (#${best['#']} – ${best['ZONA']})`;
-    table.clear().rows.add([best]).draw(); renderCards([best]);
+    table.clear().rows.add([best]).draw();
+    renderCards([best]);
   }catch(e){
     out.textContent='Error: '+e.message;
   }
