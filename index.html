@@ -10,28 +10,27 @@
         href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
 
   <style>
-    /* ---------- layout ---------- */
     body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 
-    /* responsive banner */
+    /* -------------- responsive banner -------------- */
     header img{
-      display:block;      /* remove inline gap */
-      width:100%;         /* always fill viewport width */
-      height:auto;        /* preserve aspect ratio */
-      max-height:25vh;    /* cap height */
-      object-fit:contain; /* never crop */
-      margin:0 auto;
+      display:block;
+      width:100%;
+      height:auto;           /* keep aspect ratio */
     }
-    @media(min-width:1200px){      /* shrink banner on very wide screens */
-      header img{max-height:15vh;}
+    @media(max-width:899px){           /* small screens */
+      header img{
+        max-height:25vh;     /* cap height */
+        object-fit:contain;
+      }
     }
+    /* ------------------------------------------------ */
 
     .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
     #zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
     #homeInput{min-width:260px;flex:1 1 260px}
     #homeInput::placeholder{color:#999}
-    #searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;
-               background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
+    #searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
     #searchBtn:disabled{opacity:.5;cursor:not-allowed}
 
     .table-wrapper{height:65vh;overflow:auto;padding:0 2rem 1.5rem}
@@ -42,8 +41,7 @@
     table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 
     .cards{display:none;padding:0 1rem 2rem;overflow:auto;height:65vh}
-    .card{border:1px solid #ccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;
-          box-shadow:0 1px 3px rgba(0,0,0,.05)}
+    .card{border:1px solid #ccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05)}
     .card h2{margin:.2rem 0 .6rem;font-size:1.15rem}
     .card p{margin:.25rem 0;font-size:.95rem}
 
@@ -78,7 +76,7 @@
   <div id="cards" class="cards"></div>
   <div id="error" hidden></div>
 
-  <!-- SheetJS (local copy in repo) -->
+  <!-- SheetJS (local copy) -->
   <script src="./xlsx.full.min.js"></script>
 
   <!-- jQuery + DataTables 1.13 -->
@@ -91,11 +89,11 @@
   </script>
 
 <script>
-/* ---------- state ---------- */
+/* ------------ state ------------ */
 let rows=[],table,cardsDiv,geocoder,distSvc,homePos=null;
 const geoCache=new Map();
 
-/* ---------- build table & cards ---------- */
+/* ------------ build table & cards ------------ */
 (async()=>{
   try{
     const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
@@ -107,7 +105,7 @@ const geoCache=new Map();
       const o={}; head.forEach((h,i)=>o[h]=r[i]); return o;
     });
 
-    /* ▼ populate Zona dropdown */
+    /* populate Zona <select> */
     [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))]
       .sort()
       .forEach(z=>$('#zonaSelect').append(`<option value="${z}">${z}</option>`));
@@ -115,7 +113,7 @@ const geoCache=new Map();
     const zonaIdx=head.findIndex(h=>h.toUpperCase()==='ZONA'),
           numIdx =head.findIndex(h=>h.trim()==='#');
 
-    $(function(){                      // DOM ready
+    $(function(){
       table=$('#tabla').DataTable({
         data:rows,
         columns:head.map(h=>({title:h,data:h})),
@@ -127,7 +125,7 @@ const geoCache=new Map();
 
       $('#zonaSelect').on('change',function(){
         $('#nearest').text('');
-        const v=this.value, f=v?rows.filter(r=>r['ZONA']===v):rows;
+        const v=this.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
         table.clear().rows.add(f).draw(); renderCards(f); homePos=null;
       });
     });
@@ -146,7 +144,7 @@ function renderCards(list){
   `).join('');
 }
 
-/* ---------- Google Maps ready ---------- */
+/* ------------ Google Maps ready ------------ */
 function gmapsReady(){
   geocoder=new google.maps.Geocoder();
   distSvc =new google.maps.DistanceMatrixService();
@@ -164,44 +162,42 @@ function gmapsReady(){
   document.getElementById('searchBtn').addEventListener('click',runSearch);
 }
 
-/* ---------- helpers ---------- */
-function gc(addr){
+/* ------------ helpers ------------ */
+const gc=addr=>{
   if(geoCache.has(addr)) return geoCache.get(addr);
-  return new Promise(res=>geocoder.geocode({address:addr},(r,s)=>{
-    const loc=s==='OK'?{lat:r[0].geometry.location.lat(),lng:r[0].geometry.location.lng()}:null;
-    geoCache.set(addr,loc); res(loc);
+  return new Promise(r=>geocoder.geocode({address:addr},(re,st)=>{
+    const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
+    geoCache.set(addr,loc); r(loc);
   }));
-}
-function dm(o,d){
-  return new Promise(res=>distSvc.getDistanceMatrix({
-    origins:[new google.maps.LatLng(o.lat,o.lng)],
-    destinations:[new google.maps.LatLng(d.lat,d.lng)],
-    travelMode:'DRIVING',
-    drivingOptions:{departureTime:new Date()}   // no trafficModel
-  },(m,s)=>{
-    const el=m?.rows[0].elements[0];
-    res(s==='OK'&&el.status==='OK'?(el.duration_in_traffic||el.duration).value:null);
-  }));
-}
+};
+const dm=(o,d)=>new Promise(r=>distSvc.getDistanceMatrix({
+  origins:[new google.maps.LatLng(o.lat,o.lng)],
+  destinations:[new google.maps.LatLng(d.lat,d.lng)],
+  travelMode:'DRIVING',
+  drivingOptions:{departureTime:new Date()}
+},(m,st)=>{
+  const el=m?.rows[0].elements[0];
+  r(st==='OK'&&el.status==='OK'?(el.duration_in_traffic||el.duration).value:null);
+}));
 
-/* ---------- search ---------- */
+/* ------------ search ------------ */
 async function runSearch(){
   const raw=document.getElementById('homeInput').value.trim();
   if(!raw) return;
   const btn=document.getElementById('searchBtn'), out=document.getElementById('nearest');
-  btn.disabled=true; out.textContent='Buscando...';
+  btn.disabled=true; out.textContent='Buscando…';
   try{
     if(!homePos) homePos=await gc(raw);
     if(!homePos) throw Error('No se pudo geocodificar');
     let best=null,min=Infinity;
     for(const r of rows){
-      let a=r['DIRECCION']||''; const dash=a.indexOf('-');
-      if(dash!==-1) a=a.slice(dash+1).trim();
+      let a=r['DIRECCION']||''; const idx=a.indexOf('-');
+      if(idx!==-1) a=a.slice(idx+1).trim();
       const dest=await gc(a); if(!dest) continue;
-      const sec=await dm(homePos,dest); if(sec!==null&&sec<min){min=sec;best=r;}
+      const sec=await dm(homePos,dest); if(sec!=null&&sec<min){min=sec;best=r;}
     }
     if(!best) throw Error('No se encontró destino');
-    out.textContent=`≈ ${Math.round(min/60)} min de manejo hasta la célula más cercana (#${best['#']} – ${best['ZONA']})`;
+    out.textContent=`≈ ${Math.round(min/60)} min hasta la célula más cercana (#${best['#']} – ${best['ZONA']})`;
     table.clear().rows.add([best]).draw(); renderCards([best]);
   }catch(e){
     out.textContent='Error: '+e.message;
