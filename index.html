@@ -12,17 +12,16 @@
   <style>
     body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 
-/* responsive banner */
-header .banner{
-  display:block;     /* removes inline-gap */
-  width:100%;        /* always spans page width */
-  height:auto;       /* preserve aspect ratio  */
-  max-height:25vh;   /* never taller than 25 % of viewport */
-  object-fit:contain;/* shrink if needed, never crop */
-  margin:0;
-}
-
-/* --------------------------------------------------- */
+    /* -------- responsive banner -------- */
+    header .banner{
+      display:block;          /* remove inline-gap            */
+      width:100%;             /* always fill viewport width   */
+      height:auto;            /* keep aspect ratio            */
+      max-height:25vh;        /* never taller than 25% height */
+      object-fit:contain;     /* show full image, no crop     */
+      margin:0;
+    }
+    /* ----------------------------------- */
 
     .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
     #zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
@@ -55,8 +54,8 @@ header .banner{
 </head>
 <body>
   <header>
-    <img src="./header.svg"
-         alt="La Cosecha Community Church — Células de Crecimiento por Zona">
+    <!-- swapped PNG for SVG -->
+    <img src="./header.svg" alt="La Cosecha – Células" class="banner">
   </header>
 
   <div class="controls">
@@ -103,7 +102,7 @@ const geoCache=new Map();
       const o={}; head.forEach((h,i)=>o[h]=r[i]); return o;
     });
 
-    /* populate Zona <select> */
+    /* populate Zona dropdown */
     [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))]
       .sort()
       .forEach(z=>$('#zonaSelect').append(`<option value="${z}">${z}</option>`));
