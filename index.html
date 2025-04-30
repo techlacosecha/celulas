@@ -12,17 +12,25 @@
   <style>
     body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 
-    /* -------------- responsive banner -------------- */
+    /* ---------------- responsive banner ---------------- */
 header img{
   display:block;
-  width:100%;          /* always span viewport width      */
-  height:auto;         /* preserve aspect ratio           */
-  max-height:25vh;     /* ← cap height at 25 % viewport   */
-  object-fit:contain;  /* never crop; shrink if too tall  */
-  margin:0 auto;
+  width:100%;
+  height:auto;            /* default for narrow screens  */
+  max-height:25vh;
+  object-fit:contain;     /* show full logo on phones    */
+  margin:0;
 }
 
-    /* ------------------------------------------------ */
+/* desktop / wide tablet */
+@media (min-width:900px){
+  header img{
+    height:25vh;          /* fixed height on desktop     */
+    max-height:none;      /* remove previous cap         */
+    object-fit:cover;     /* fill width – crop vertically*/
+  }
+}
+/* --------------------------------------------------- */
 
     .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
     #zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
