@@ -12,22 +12,16 @@
   <style>
     body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 
-    /* ---------------- responsive banner ---------------- */
-header img{
-  display:block;
-  width:100%;
-  height:auto;            /* default for narrow screens  */
-  max-height:25vh;
-  object-fit:contain;     /* show full logo on phones    */
+/* responsive banner */
+header .banner{
+  display:block;     /* removes inline-gap */
+  width:100%;        /* always spans page width */
+  height:auto;       /* preserve aspect ratio  */
+  max-height:25vh;   /* never taller than 25 % of viewport */
+  object-fit:contain;/* shrink if needed, never crop */
   margin:0;
 }
 
-/* desktop / wide tablet */
-@media (min-width:900px){
-  header img{
-    max-height:30vh;      /* remove previous cap         */
-  }
-}
 /* --------------------------------------------------- */
 
     .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
