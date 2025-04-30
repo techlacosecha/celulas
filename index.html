@@ -13,17 +13,15 @@
     body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 
     /* -------------- responsive banner -------------- */
-    header img{
-      display:block;
-      width:100%;
-      height:auto;           /* keep aspect ratio */
-    }
-    @media(max-width:899px){           /* small screens */
-      header img{
-        max-height:25vh;     /* cap height */
-        object-fit:contain;
-      }
-    }
+header img{
+  display:block;
+  width:100%;          /* always span viewport width      */
+  height:auto;         /* preserve aspect ratio           */
+  max-height:25vh;     /* ← cap height at 25 % viewport   */
+  object-fit:contain;  /* never crop; shrink if too tall  */
+  margin:0 auto;
+}
+
     /* ------------------------------------------------ */
 
     .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
