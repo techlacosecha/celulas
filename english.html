@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
+<meta charset="utf-8" />
 <title>Growth Cells | Zone</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <link rel="stylesheet"
-      href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
+      href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
 <style>
-/* (identical CSS as Spanish page) */
+/* (same CSS as Spanish file) */
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 header .banner{display:block;width:100%;height:auto;max-height:25vh;object-fit:contain;margin:0}
 .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
@@ -26,19 +26,18 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 .card p{margin:.25rem 0;font-size:.95rem}
 @media(max-width:900px){.table-wrapper{display:none}.cards{display:block}.controls{margin:1rem}}
 #nearest{margin:.5rem 2rem 0;font-weight:600}
-#error  {color:#c00;margin:1rem 2rem 0;font-weight:700}
+#error{color:#c00;margin:1rem 2rem 0;font-weight:700}
 </style>
 </head>
 <body>
-<header><img src="./header.svg" class="banner"
-             alt="La Cosecha Community Church — Growth Cells"></header>
+<header><img src="./header.svg" class="banner" alt="La Cosecha Community Church — Growth Cells" /></header>
 
 <div class="controls">
   <label for="zonaSelect"><strong>Zone:</strong></label>
   <select id="zonaSelect"><option value="">— All —</option></select>
 
-  <label for="homeInput" class="addr-label">Find nearest address:</label>
-  <input id="homeInput" type="text" placeholder="Home Address"/>
+  <label for="homeInput">Find nearest address:</label>
+  <input id="homeInput" type="text" placeholder="Home Address" />
   <button id="searchBtn">Search</button>
 </div>
 
@@ -55,40 +54,48 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 </script>
 
 <script>
-/* ---------- constants ---------- */
+/* —— constants —— */
 const HUB_ADDR='600 Greenwich St, Hempstead, NY 11550';
 const hdrEN={ '#':'#','ZONA':'ZONE','MAESTRO':'LEADER','ASISTENTE':'ASSISTANT',
               'DIRECCION':'ADDRESS','DIA':'DAY','HORA':'TIME',
               'IDIOMA':'LANGUAGE','TELEFONO':'PHONE' };
 
-/* ---------- state ---------- */
-let headEN=[], rows=[], table,cardsDiv,
+/* —— state —— */
+let headEN=[],rows=[],table,cardsDiv,
     geocoder,distSvc,homePos=null;
 const geoCache=new Map();
 
-/* ---------- helpers ---------- */
-const gc=addr=>{
-  if(geoCache.has(addr)) return geoCache.get(addr);
-  return new Promise(r=>geocoder.geocode({address:addr},(re,st)=>{
-    const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
-    geoCache.set(addr,loc); r(loc);
-  }));
+/* —— safe geocoder —— */
+const gc = addr => {
+  if (!addr || typeof addr !== 'string' || !addr.trim() ||
+      addr.trim() === '—' ||
+      addr.trim().toLowerCase() === 'zoom') {
+    return Promise.resolve(null);
+  }
+  if (geoCache.has(addr)) return geoCache.get(addr);
+  return new Promise(r=>
+    geocoder.geocode({address:addr},(re,st)=>{
+      const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
+      geoCache.set(addr,loc); r(loc);
+    })
+  );
 };
+
 async function driveMin(from,to){
   const o=await gc(from), d=await gc(to); if(!o||!d) return null;
-  return new Promise(res=>distSvc.getDistanceMatrix({
+  return new Promise(r=>distSvc.getDistanceMatrix({
     origins:[new google.maps.LatLng(o.lat,o.lng)],
     destinations:[new google.maps.LatLng(d.lat,d.lng)],
     travelMode:'DRIVING',
     drivingOptions:{departureTime:new Date()}
   },(m,st)=>{
     const el=m?.rows[0].elements[0];
-    res(st==='OK'&&el.status==='OK'
-        ? Math.round((el.duration_in_traffic||el.duration).value/60):null);
+    r(st==='OK'&&el.status==='OK'
+      ? Math.round((el.duration_in_traffic||el.duration).value/60):null);
   }));
 }
 
-/* ---------- Google Maps ready ---------- */
+/* —— maps ready —— */
 async function gmapsReady(){
   geocoder=new google.maps.Geocoder();
   distSvc =new google.maps.DistanceMatrixService();
@@ -103,16 +110,16 @@ async function gmapsReady(){
   document.getElementById('searchBtn').addEventListener('click',runSearch);
 }
 
-/* ---------- load Excel ---------- */
+/* —— load Excel —— */
 async function loadSheet(){
   try{
     const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
     const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
     const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
     const headES=arr[0].map(h=>String(h).trim());
-    headEN = headES.map(h=>hdrEN[h]||h);
+    headEN=headES.map(h=>hdrEN[h]||h);
 
-    rows = arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{
+    rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{
       const o={}; headES.forEach((h,i)=>o[hdrEN[h]||h]=r[i]); return o;
     }).map(o=>{
       let lang=String(o['LANGUAGE']).toLowerCase();
@@ -131,13 +138,12 @@ async function loadSheet(){
   }catch(e){$('#error').show().text(e);}
 }
 
-/* ---------- build UI ---------- */
+/* —— UI —— */
 function buildUI(){
   [...new Set(rows.map(r=>r['ZONE']).filter(Boolean))].sort()
     .forEach(z=>$('#zonaSelect').append(`<option value="${z}">${z}</option>`));
 
   const numIdx=headEN.indexOf('#'), zoneIdx=headEN.indexOf('ZONE');
-
   table=$('#tabla').DataTable({
     data:rows,
     columns:headEN.map(h=>({title:h,data:h})),
@@ -153,7 +159,7 @@ function buildUI(){
   });
 }
 
-/* ---------- cards ---------- */
+/* —— cards —— */
 function renderCards(list){
   cardsDiv.innerHTML=list.map(r=>{
     const lines=headEN.map(h=>`<p><strong>${h}:</strong> ${r[h]}</p>`).join('');
@@ -161,24 +167,20 @@ function renderCards(list){
   }).join('');
 }
 
-/* ---------- fill ETA from home for all rows (safe) ---------- */
+/* —— fill ETA home —— */
 async function fillHomeEtas(){
   await Promise.all(rows.map(async r=>{
-    if (r.ETA_HOME != null) return;                 // already done
-    const raw = r.ADDRESS_RAW;
-    if (!raw || typeof raw !== 'string' ||
-        raw.trim().toLowerCase() === 'zoom'){       // skip Zoom / blanks
-      r.ETA_HOME = null;
-      return;
-    }
-    const addr = raw.split('-').pop().trim();
-    const m = await driveMin(homePos, addr);
-    r.ETA_HOME = m;
-    r['ADDRESS'] = m != null ? `≈ ${m} min` : '—';
+    if(r.ETA_HOME!=null) return;
+    const raw=r.ADDRESS_RAW;
+    if(!raw||typeof raw!=='string'||!raw.trim()||raw.trim()==='—'||
+       raw.trim().toLowerCase()==='zoom'){r.ETA_HOME=null; return;}
+    const addr=raw.split('-').pop().trim();
+    const m=await driveMin(homePos,addr);
+    r.ETA_HOME=m; r['ADDRESS']=m!=null?`≈ ${m} min`:'—';
   }));
 }
 
-/* ---------- search ---------- */
+/* —— search —— */
 async function runSearch(){
   const raw=document.getElementById('homeInput').value.trim();
   if(!raw) return;
@@ -195,19 +197,16 @@ async function runSearch(){
 
     const zoomRow=rows.find(r=>String(r.ADDRESS_RAW).toLowerCase().includes('zoom'));
 
-   const results = rows
-  .filter(r => r.ETA_HOME != null)                 // keep rows that have ETA
-  .map(r => ({eta: r.ETA_HOME, row: r}))
-  .sort((a,b) => a.eta - b.eta);
-
+    const results=rows.filter(r=>typeof r.ETA_HOME==='number')
+                      .map(r=>({eta:r.ETA_HOME,row:r}))
+                      .sort((a,b)=>a.eta-b.eta);
 
     const within3=results.filter(x=>x.eta<=3);
     let show;
-    if(within3.length>2){
-      show=within3;
-    }else{
+    if(within3.length>2) show=within3;
+    else{
       show=results.slice(0,2);
-      if(zoomRow && !show.some(x=>x.row===zoomRow))
+      if(zoomRow&&!show.some(x=>x.row===zoomRow))
         show.push({eta:'—',row:zoomRow});
     }
 
