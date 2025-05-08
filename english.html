@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-8"/>
 <title>Growth Cells | Zone</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="stylesheet"
-      href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
+      href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
 <style>
 /* identical CSS */
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
@@ -31,14 +31,14 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 </head>
 <body>
 <header><img src="./header.svg" class="banner"
-             alt="La Cosecha Community Church — Growth Cells" /></header>
+             alt="La Cosecha Community Church — Growth Cells"/></header>
 
 <div class="controls">
   <label for="zonaSelect"><strong>Zone:</strong></label>
   <select id="zonaSelect"><option value="">— All —</option></select>
 
   <label for="homeInput">Find nearest address:</label>
-  <input id="homeInput" type="text" placeholder="Home Address" />
+  <input id="homeInput" type="text" placeholder="Home Address"/>
   <button id="searchBtn">Search</button>
 </div>
 
@@ -56,75 +56,63 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 
 <script>
 /* —— constants —— */
-const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
-const hdrEN = { '#':'#','ZONA':'ZONE','MAESTRO':'LEADER','ASISTENTE':'ASSISTANT',
-                'DIRECCION':'ADDRESS','DIA':'DAY','HORA':'TIME',
-                'IDIOMA':'LANGUAGE','TELEFONO':'PHONE' };
+const HUB_ADDR='600 Greenwich St, Hempstead, NY 11550';
+const hdrEN={ '#':'#','ZONA':'ZONE','MAESTRO':'LEADER','ASISTENTE':'ASSISTANT',
+              'DIRECCION':'ETA', /* renamed */
+              'DIA':'DAY','HORA':'TIME',
+              'IDIOMA':'LANGUAGE','TELEFONO':'PHONE' };
 
 /* —— state —— */
-let headEN = [], rows = [], table, cardsDiv,
-    geocoder, distSvc, homePos = null;
-const geoCache = new Map();
+let headEN=[], rows=[], table, cardsDiv,
+    geocoder, distSvc, homePos=null;
+const geoCache=new Map();
 
-/* —— safe geocoder —— */
-const gc = addr => {
-  if (!addr || typeof addr !== 'string' || !addr.trim() ||
-      addr.trim() === '—' ||
-      addr.trim().toLowerCase() === 'zoom') {
+/* —— safe gc —— */
+const gc=addr=>{
+  if(!addr||typeof addr!=='string'||!addr.trim()||
+     addr.trim()==='—'||addr.trim().toLowerCase()==='zoom')
     return Promise.resolve(null);
-  }
-  if (geoCache.has(addr)) return geoCache.get(addr);
-  return new Promise(res =>
-    geocoder.geocode({address: addr}, (re, st) => {
-      const loc = st === 'OK'
-        ? {lat: re[0].geometry.location.lat(), lng: re[0].geometry.location.lng()}
-        : null;
-      geoCache.set(addr, loc);
-      res(loc);
-    })
-  );
+  if(geoCache.has(addr)) return geoCache.get(addr);
+  return new Promise(r=>geocoder.geocode({address:addr},(re,st)=>{
+    const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
+    geoCache.set(addr,loc); r(loc);
+  }));
 };
 
-/* —— driveMin with fallback —— */
-async function driveMin(from, to){
-  const o = await gc(from), d = await gc(to);
-  if (!o || !d) return null;
-
-  return new Promise(res => {
-    distSvc.getDistanceMatrix({
-      origins:      [new google.maps.LatLng(o.lat, o.lng)],
-      destinations: [new google.maps.LatLng(d.lat, d.lng)],
-      travelMode:   'DRIVING',
-      drivingOptions:{departureTime: new Date()}
-    }, (m, st) => {
-      const el = m?.rows[0]?.elements[0];
-      if (st === 'OK' && el?.status === 'OK')
-        return res(Math.round((el.duration_in_traffic || el.duration).value / 60));
-
-      /* fallback */
-      const R = 6371, rad = x => x*Math.PI/180;
-      const dLat = rad(d.lat - o.lat), dLng = rad(d.lng - o.lng);
-      const a = Math.sin(dLat/2)**2 +
-                Math.cos(rad(o.lat))*Math.cos(rad(d.lat))*Math.sin(dLng/2)**2;
-      const km = 2 * R * Math.asin(Math.sqrt(a));
-      res(Math.round((km / 50) * 60));
-    });
-  });
+/* —— driveMinutes with fallback —— */
+async function driveMin(from,to){
+  const o=await gc(from), d=await gc(to); if(!o||!d) return null;
+  return new Promise(r=>distSvc.getDistanceMatrix({
+    origins:[new google.maps.LatLng(o.lat,o.lng)],
+    destinations:[new google.maps.LatLng(d.lat,d.lng)],
+    travelMode:'DRIVING',
+    drivingOptions:{departureTime:new Date()}
+  },(m,st)=>{
+    const el=m?.rows[0]?.elements[0];
+    if(st==='OK'&&el?.status==='OK')
+      return r(Math.round((el.duration_in_traffic||el.duration).value/60));
+    /* fallback */
+    const R=6371,rad=x=>x*Math.PI/180;
+    const dLat=rad(d.lat-o.lat), dLng=rad(d.lng-o.lng);
+    const a=Math.sin(dLat/2)**2+Math.cos(rad(o.lat))*Math.cos(rad(d.lat))*Math.sin(dLng/2)**2;
+    const km=2*R*Math.asin(Math.sqrt(a));
+    r(Math.round((km/50)*60));
+  }));
 }
 
 /* —— maps ready —— */
 async function gmapsReady(){
   geocoder=new google.maps.Geocoder();
-  distSvc = new google.maps.DistanceMatrixService();
+  distSvc =new google.maps.DistanceMatrixService();
   await loadSheet();
 
   const ac=new google.maps.places.Autocomplete(
-    document.getElementById('homeInput'), {types:['geocode']});
+    document.getElementById('homeInput'),{types:['geocode']});
   ac.addListener('place_changed',()=>{
     const p=ac.getPlace();
     homePos=p.geometry?{lat:p.geometry.location.lat(),lng:p.geometry.location.lng()}:null;
   });
-  document.getElementById('searchBtn').addEventListener('click', runSearch);
+  document.getElementById('searchBtn').addEventListener('click',runSearch);
 }
 
 /* —— load sheet —— */
@@ -140,8 +128,8 @@ async function loadSheet(){
       const o={}; headES.forEach((h,i)=>o[hdrEN[h]||h]=r[i]); return o;
     }).map(o=>{
       let lang=String(o['LANGUAGE']).toLowerCase();
-      if(lang==='bilingüe'||lang==='bilingue'){o['LANGUAGE']='Bilingual'; lang='bilingual';}
-      else if(lang==='ingles'||lang==='english'){o['LANGUAGE']='English'; lang='english';}
+      if(lang==='bilingüe'||lang==='bilingue'){o['LANGUAGE']='Bilingual';lang='bilingual';}
+      else if(lang==='ingles'||lang==='english'){o['LANGUAGE']='English';lang='english';}
       o._lang=lang; return o;
     }).filter(o=>o._lang==='english'||o._lang==='bilingual');
 
@@ -150,9 +138,8 @@ async function loadSheet(){
       const m=await driveMin(r.ADDRESS_RAW,HUB_ADDR);
       r['ADDRESS']=m!=null?`≈ ${m} min`:'—';
     }));
-
     buildUI();
-  }catch(e){ $('#error').show().text(e); }
+  }catch(e){$('#error').show().text(e);}
 }
 
 /* —— UI —— */
@@ -163,7 +150,7 @@ function buildUI(){
   const numIdx=headEN.indexOf('#'), zoneIdx=headEN.indexOf('ZONE');
   table=$('#tabla').DataTable({
     data:rows,
-    columns:headEN.map(h=>({title:h,data:h})),
+    columns:headEN.map(h=>({title:h,data:h==='ETA'?'ADDRESS':h})),
     order:[[numIdx,'asc'],[zoneIdx,'asc']],
     pageLength:10
   });
@@ -179,7 +166,10 @@ function buildUI(){
 /* —— cards —— */
 function renderCards(list){
   cardsDiv.innerHTML=list.map(r=>{
-    const lines=headEN.map(h=>`<p><strong>${h}:</strong> ${r[h]}</p>`).join('');
+    const lines=headEN.map(h=>{
+      const key=h==='ETA'?'ADDRESS':h;
+      return `<p><strong>${h}:</strong> ${r[key]}</p>`;
+    }).join('');
     return `<div class="card">${lines}</div>`;
   }).join('');
 }
@@ -201,10 +191,8 @@ async function fillHomeEtas(){
 async function runSearch(){
   const raw=document.getElementById('homeInput').value.trim();
   if(!raw) return;
-  const btn=document.getElementById('searchBtn'),
-        out=document.getElementById('nearest');
+  const btn=document.getElementById('searchBtn'), out=document.getElementById('nearest');
   btn.disabled=true; out.textContent='Searching…';
-
   try{
     if(!homePos){
       const loc=await gc(raw); if(!loc) throw Error('Could not geocode');
@@ -230,8 +218,7 @@ async function runSearch(){
 
     if(!show.length){
       out.textContent='No nearby cells found.';
-      btn.disabled=false;
-      return;
+      btn.disabled=false; return;
     }
 
     show.forEach(x=>x.row['ADDRESS']=x.eta!=='—'?`≈ ${x.eta} min`:'Zoom');
@@ -240,7 +227,6 @@ async function runSearch(){
 
     const best=show[0];
     out.textContent=`≈ ${best.eta} min to the nearest cell (#${best.row['#']} – ${best.row['ZONE']})`;
-
   }catch(e){ out.textContent='Error: '+e.message; }
   btn.disabled=false;
 }
