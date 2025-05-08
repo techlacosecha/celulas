@@ -7,7 +7,7 @@
 <link rel="stylesheet"
       href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
 <style>
-/* (same CSS as Spanish file) */
+/* identical CSS */
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 header .banner{display:block;width:100%;height:auto;max-height:25vh;object-fit:contain;margin:0}
 .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
@@ -30,7 +30,8 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 </style>
 </head>
 <body>
-<header><img src="./header.svg" class="banner" alt="La Cosecha Community Church — Growth Cells" /></header>
+<header><img src="./header.svg" class="banner"
+             alt="La Cosecha Community Church — Growth Cells" /></header>
 
 <div class="controls">
   <label for="zonaSelect"><strong>Zone:</strong></label>
@@ -55,15 +56,15 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 
 <script>
 /* —— constants —— */
-const HUB_ADDR='600 Greenwich St, Hempstead, NY 11550';
-const hdrEN={ '#':'#','ZONA':'ZONE','MAESTRO':'LEADER','ASISTENTE':'ASSISTANT',
-              'DIRECCION':'ADDRESS','DIA':'DAY','HORA':'TIME',
-              'IDIOMA':'LANGUAGE','TELEFONO':'PHONE' };
+const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
+const hdrEN = { '#':'#','ZONA':'ZONE','MAESTRO':'LEADER','ASISTENTE':'ASSISTANT',
+                'DIRECCION':'ADDRESS','DIA':'DAY','HORA':'TIME',
+                'IDIOMA':'LANGUAGE','TELEFONO':'PHONE' };
 
 /* —— state —— */
-let headEN=[],rows=[],table,cardsDiv,
-    geocoder,distSvc,homePos=null;
-const geoCache=new Map();
+let headEN = [], rows = [], table, cardsDiv,
+    geocoder, distSvc, homePos = null;
+const geoCache = new Map();
 
 /* —— safe geocoder —— */
 const gc = addr => {
@@ -73,44 +74,60 @@ const gc = addr => {
     return Promise.resolve(null);
   }
   if (geoCache.has(addr)) return geoCache.get(addr);
-  return new Promise(r=>
-    geocoder.geocode({address:addr},(re,st)=>{
-      const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
-      geoCache.set(addr,loc); r(loc);
+  return new Promise(res =>
+    geocoder.geocode({address: addr}, (re, st) => {
+      const loc = st === 'OK'
+        ? {lat: re[0].geometry.location.lat(), lng: re[0].geometry.location.lng()}
+        : null;
+      geoCache.set(addr, loc);
+      res(loc);
     })
   );
 };
 
-async function driveMin(from,to){
-  const o=await gc(from), d=await gc(to); if(!o||!d) return null;
-  return new Promise(r=>distSvc.getDistanceMatrix({
-    origins:[new google.maps.LatLng(o.lat,o.lng)],
-    destinations:[new google.maps.LatLng(d.lat,d.lng)],
-    travelMode:'DRIVING',
-    drivingOptions:{departureTime:new Date()}
-  },(m,st)=>{
-    const el=m?.rows[0].elements[0];
-    r(st==='OK'&&el.status==='OK'
-      ? Math.round((el.duration_in_traffic||el.duration).value/60):null);
-  }));
+/* —— driveMin with fallback —— */
+async function driveMin(from, to){
+  const o = await gc(from), d = await gc(to);
+  if (!o || !d) return null;
+
+  return new Promise(res => {
+    distSvc.getDistanceMatrix({
+      origins:      [new google.maps.LatLng(o.lat, o.lng)],
+      destinations: [new google.maps.LatLng(d.lat, d.lng)],
+      travelMode:   'DRIVING',
+      drivingOptions:{departureTime: new Date()}
+    }, (m, st) => {
+      const el = m?.rows[0]?.elements[0];
+      if (st === 'OK' && el?.status === 'OK')
+        return res(Math.round((el.duration_in_traffic || el.duration).value / 60));
+
+      /* fallback */
+      const R = 6371, rad = x => x*Math.PI/180;
+      const dLat = rad(d.lat - o.lat), dLng = rad(d.lng - o.lng);
+      const a = Math.sin(dLat/2)**2 +
+                Math.cos(rad(o.lat))*Math.cos(rad(d.lat))*Math.sin(dLng/2)**2;
+      const km = 2 * R * Math.asin(Math.sqrt(a));
+      res(Math.round((km / 50) * 60));
+    });
+  });
 }
 
 /* —— maps ready —— */
 async function gmapsReady(){
   geocoder=new google.maps.Geocoder();
-  distSvc =new google.maps.DistanceMatrixService();
+  distSvc = new google.maps.DistanceMatrixService();
   await loadSheet();
 
   const ac=new google.maps.places.Autocomplete(
-    document.getElementById('homeInput'),{types:['geocode']});
+    document.getElementById('homeInput'), {types:['geocode']});
   ac.addListener('place_changed',()=>{
     const p=ac.getPlace();
     homePos=p.geometry?{lat:p.geometry.location.lat(),lng:p.geometry.location.lng()}:null;
   });
-  document.getElementById('searchBtn').addEventListener('click',runSearch);
+  document.getElementById('searchBtn').addEventListener('click', runSearch);
 }
 
-/* —— load Excel —— */
+/* —— load sheet —— */
 async function loadSheet(){
   try{
     const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
@@ -135,7 +152,7 @@ async function loadSheet(){
     }));
 
     buildUI();
-  }catch(e){$('#error').show().text(e);}
+  }catch(e){ $('#error').show().text(e); }
 }
 
 /* —— UI —— */
@@ -173,7 +190,7 @@ async function fillHomeEtas(){
     if(r.ETA_HOME!=null) return;
     const raw=r.ADDRESS_RAW;
     if(!raw||typeof raw!=='string'||!raw.trim()||raw.trim()==='—'||
-       raw.trim().toLowerCase()==='zoom'){r.ETA_HOME=null; return;}
+       raw.trim().toLowerCase()==='zoom'){r.ETA_HOME=null;return;}
     const addr=raw.split('-').pop().trim();
     const m=await driveMin(homePos,addr);
     r.ETA_HOME=m; r['ADDRESS']=m!=null?`≈ ${m} min`:'—';
@@ -184,7 +201,8 @@ async function fillHomeEtas(){
 async function runSearch(){
   const raw=document.getElementById('homeInput').value.trim();
   if(!raw) return;
-  const btn=document.getElementById('searchBtn'), out=document.getElementById('nearest');
+  const btn=document.getElementById('searchBtn'),
+        out=document.getElementById('nearest');
   btn.disabled=true; out.textContent='Searching…';
 
   try{
@@ -210,19 +228,20 @@ async function runSearch(){
         show.push({eta:'—',row:zoomRow});
     }
 
-        if (!show.length) {
-  out.textContent = 'No nearby cells found.';
-  btn.disabled = false;
-  return;}
+    if(!show.length){
+      out.textContent='No nearby cells found.';
+      btn.disabled=false;
+      return;
+    }
 
     show.forEach(x=>x.row['ADDRESS']=x.eta!=='—'?`≈ ${x.eta} min`:'Zoom');
-    const best=show[0];
-    out.textContent=`≈ ${best.eta} min to the nearest cell (#${best.row['#']} – ${best.row['ZONE']})`;
-
     table.clear().rows.add(show.map(x=>x.row)).draw();
     renderCards(show.map(x=>x.row));
 
-  }catch(e){out.textContent='Error: '+e.message;}
+    const best=show[0];
+    out.textContent=`≈ ${best.eta} min to the nearest cell (#${best.row['#']} – ${best.row['ZONE']})`;
+
+  }catch(e){ out.textContent='Error: '+e.message; }
   btn.disabled=false;
 }
 </script>
