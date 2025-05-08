@@ -7,12 +7,13 @@
 <link rel="stylesheet"
       href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
 <style>
-/* identical CSS */
+/* —— same layout & colours —— */
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 header .banner{display:block;width:100%;height:auto;max-height:25vh;object-fit:contain;margin:0}
 .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
 #zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
-#homeInput{min-width:260px;flex:1 1 260px}#homeInput::placeholder{color:#999}
+#homeInput{min-width:260px;flex:1 1 260px}
+#homeInput::placeholder{color:#999}
 #searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
 #searchBtn:disabled{opacity:.5;cursor:not-allowed}
 .table-wrapper{height:65vh;overflow:auto;padding:0 2rem 1.5rem}
@@ -30,8 +31,10 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 </style>
 </head>
 <body>
-<header><img src="./header.svg" class="banner"
-             alt="La Cosecha Community Church — Growth Cells"/></header>
+<header>
+  <img src="./header.svg" class="banner"
+       alt="La Cosecha Community Church — Growth Cells">
+</header>
 
 <div class="controls">
   <label for="zonaSelect"><strong>Zone:</strong></label>
@@ -43,10 +46,12 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 </div>
 
 <div id="nearest"></div>
-<div class="table-wrapper"><table id="tabla" class="display"></table></div>
-<div id="cards" class="cards"></div>
-<div id="error" hidden></div>
 
+<div class="table-wrapper"><table id="tabla" class="display"></table></div>
+<div id="cards"  class="cards"></div>
+<div id="error"  hidden></div>
+
+<!-- libraries -->
 <script src="./xlsx.full.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
@@ -56,75 +61,82 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 
 <script>
 /* —— constants —— */
-const HUB_ADDR='600 Greenwich St, Hempstead, NY 11550';
-const hdrEN={ '#':'#','ZONA':'ZONE','MAESTRO':'LEADER','ASISTENTE':'ASSISTANT',
-              'DIRECCION':'ETA', /* renamed */
-              'DIA':'DAY','HORA':'TIME',
-              'IDIOMA':'LANGUAGE','TELEFONO':'PHONE' };
+const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
+const hdrEN = { '#':'#','ZONA':'ZONE','MAESTRO':'LEADER','ASISTENTE':'ASSISTANT',
+                'DIRECCION':'ETA',        /* renamed header only */
+                'DIA':'DAY','HORA':'TIME',
+                'IDIOMA':'LANGUAGE','TELEFONO':'PHONE' };
 
 /* —— state —— */
-let headEN=[], rows=[], table, cardsDiv,
-    geocoder, distSvc, homePos=null;
-const geoCache=new Map();
+let headEN = [], rows = [], table, cardsDiv,
+    geocoder, distSvc, homePos = null;
+const geoCache = new Map();
 
-/* —— safe gc —— */
-const gc=addr=>{
-  if(!addr||typeof addr!=='string'||!addr.trim()||
-     addr.trim()==='—'||addr.trim().toLowerCase()==='zoom')
+/* —— safe geocoder —— */
+const gc = addr => {
+  if (!addr || typeof addr!=='string' || !addr.trim() ||
+      addr.trim()==='—' || addr.trim().toLowerCase()==='zoom')
     return Promise.resolve(null);
-  if(geoCache.has(addr)) return geoCache.get(addr);
-  return new Promise(r=>geocoder.geocode({address:addr},(re,st)=>{
-    const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
-    geoCache.set(addr,loc); r(loc);
+  if (geoCache.has(addr)) return geoCache.get(addr);
+  return new Promise(res => geocoder.geocode({address:addr}, (re,st) => {
+    const loc = st==='OK'
+      ? {lat:re[0].geometry.location.lat(), lng:re[0].geometry.location.lng()}
+      : null;
+    geoCache.set(addr, loc); res(loc);
   }));
 };
 
-/* —— driveMinutes with fallback —— */
+/* —— minute-distance with fallback —— */
 async function driveMin(from,to){
-  const o=await gc(from), d=await gc(to); if(!o||!d) return null;
-  return new Promise(r=>distSvc.getDistanceMatrix({
+  const o = await gc(from), d = await gc(to); if(!o||!d) return null;
+  return new Promise(res => distSvc.getDistanceMatrix({
     origins:[new google.maps.LatLng(o.lat,o.lng)],
     destinations:[new google.maps.LatLng(d.lat,d.lng)],
     travelMode:'DRIVING',
     drivingOptions:{departureTime:new Date()}
-  },(m,st)=>{
-    const el=m?.rows[0]?.elements[0];
-    if(st==='OK'&&el?.status==='OK')
-      return r(Math.round((el.duration_in_traffic||el.duration).value/60));
-    /* fallback */
-    const R=6371,rad=x=>x*Math.PI/180;
+  }, (m,st) => {
+    const el = m?.rows[0]?.elements[0];
+    if(st==='OK' && el?.status==='OK')
+      return res(Math.round((el.duration_in_traffic||el.duration).value/60));
+
+    /* fallback – straight-line @ 50 km/h */
+    const R=6371, rad=x=>x*Math.PI/180;
     const dLat=rad(d.lat-o.lat), dLng=rad(d.lng-o.lng);
-    const a=Math.sin(dLat/2)**2+Math.cos(rad(o.lat))*Math.cos(rad(d.lat))*Math.sin(dLng/2)**2;
+    const a=Math.sin(dLat/2)**2 +
+             Math.cos(rad(o.lat))*Math.cos(rad(d.lat))*Math.sin(dLng/2)**2;
     const km=2*R*Math.asin(Math.sqrt(a));
-    r(Math.round((km/50)*60));
+    res(Math.round((km/50)*60));
   }));
 }
 
-/* —— maps ready —— */
+/* —— Google Maps ready —— */
 async function gmapsReady(){
-  geocoder=new google.maps.Geocoder();
-  distSvc =new google.maps.DistanceMatrixService();
+  geocoder = new google.maps.Geocoder();
+  distSvc  = new google.maps.DistanceMatrixService();
   await loadSheet();
 
-  const ac=new google.maps.places.Autocomplete(
-    document.getElementById('homeInput'),{types:['geocode']});
+  const ac = new google.maps.places.Autocomplete(
+    document.getElementById('homeInput'), {types:['geocode']});
   ac.addListener('place_changed',()=>{
-    const p=ac.getPlace();
-    homePos=p.geometry?{lat:p.geometry.location.lat(),lng:p.geometry.location.lng()}:null;
+    const p = ac.getPlace();
+    homePos = p.geometry ? {lat:p.geometry.location.lat(),
+                            lng:p.geometry.location.lng()} : null;
   });
-  document.getElementById('searchBtn').addEventListener('click',runSearch);
+  document.getElementById('searchBtn').addEventListener('click', runSearch);
 }
 
-/* —— load sheet —— */
+/* —— load Excel —— */
 async function loadSheet(){
   try{
-    const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
-    const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
-    const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
-    const headES=arr[0].map(h=>String(h).trim());
-    headEN=headES.map(h=>hdrEN[h]||h);
+    const wb = XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),
+                         {type:'array'});
+    const sh = wb.Sheets['Consolidado'] ?? wb.Sheets[wb.SheetNames[0]];
+    const arr= XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
 
-    rows=arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{
+    const headES = arr[0].map(h=>String(h).trim());
+    headEN = headES.map(h=>hdrEN[h]||h);          // English titles
+
+    rows = arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{
       const o={}; headES.forEach((h,i)=>o[hdrEN[h]||h]=r[i]); return o;
     }).map(o=>{
       let lang=String(o['LANGUAGE']).toLowerCase();
@@ -133,13 +145,15 @@ async function loadSheet(){
       o._lang=lang; return o;
     }).filter(o=>o._lang==='english'||o._lang==='bilingual');
 
+    /* ETA hub -> replace address text */
     await Promise.all(rows.map(async r=>{
-      r.ADDRESS_RAW=r['ADDRESS'];
-      const m=await driveMin(r.ADDRESS_RAW,HUB_ADDR);
-      r['ADDRESS']=m!=null?`≈ ${m} min`:'—';
+      r.ADDRESS_RAW = r['ADDRESS'];
+      const m = await driveMin(r.ADDRESS_RAW, HUB_ADDR);
+      r['ADDRESS'] = m!=null ? `≈ ${m} min` : '—';
     }));
+
     buildUI();
-  }catch(e){$('#error').show().text(e);}
+  }catch(e){ $('#error').show().text(e); }
 }
 
 /* —— UI —— */
@@ -148,16 +162,16 @@ function buildUI(){
     .forEach(z=>$('#zonaSelect').append(`<option value="${z}">${z}</option>`));
 
   const numIdx=headEN.indexOf('#'), zoneIdx=headEN.indexOf('ZONE');
-  table=$('#tabla').DataTable({
-    data:rows,
-    columns:headEN.map(h=>({title:h,data:h==='ETA'?'ADDRESS':h})),
-    order:[[numIdx,'asc'],[zoneIdx,'asc']],
-    pageLength:10
+  table = $('#tabla').DataTable({
+    data: rows,
+    columns: headEN.map(h => ({title:h,data:h==='ETA'?'ADDRESS':h})),
+    order:  [[numIdx,'asc'],[zoneIdx,'asc']],
+    pageLength: 10
   });
-  cardsDiv=document.getElementById('cards');
+  cardsDiv = document.getElementById('cards');
   renderCards(rows);
 
-  $('#zonaSelect').on('change',function(){
+  $('#zonaSelect').on('change', function(){
     const v=this.value,f=v?rows.filter(r=>r['ZONE']===v):rows;
     table.clear().rows.add(f).draw(); renderCards(f);
   });
@@ -165,16 +179,16 @@ function buildUI(){
 
 /* —— cards —— */
 function renderCards(list){
-  cardsDiv.innerHTML=list.map(r=>{
-    const lines=headEN.map(h=>{
-      const key=h==='ETA'?'ADDRESS':h;
+  cardsDiv.innerHTML = list.map(r=>{
+    const lines = headEN.map(h=>{
+      const key = h==='ETA' ? 'ADDRESS' : h;
       return `<p><strong>${h}:</strong> ${r[key]}</p>`;
     }).join('');
     return `<div class="card">${lines}</div>`;
   }).join('');
 }
 
-/* —— fill ETA home —— */
+/* —— fill ETA from home —— */
 async function fillHomeEtas(){
   await Promise.all(rows.map(async r=>{
     if(r.ETA_HOME!=null) return;
@@ -182,16 +196,18 @@ async function fillHomeEtas(){
     if(!raw||typeof raw!=='string'||!raw.trim()||raw.trim()==='—'||
        raw.trim().toLowerCase()==='zoom'){r.ETA_HOME=null;return;}
     const addr=raw.split('-').pop().trim();
-    const m=await driveMin(homePos,addr);
-    r.ETA_HOME=m; r['ADDRESS']=m!=null?`≈ ${m} min`:'—';
+    const m = await driveMin(homePos, addr);
+    r.ETA_HOME = m;
+    r['ADDRESS']= m!=null ? `≈ ${m} min` : '—';
   }));
 }
 
-/* —— search —— */
+/* —— search button —— */
 async function runSearch(){
   const raw=document.getElementById('homeInput').value.trim();
   if(!raw) return;
-  const btn=document.getElementById('searchBtn'), out=document.getElementById('nearest');
+  const btn=document.getElementById('searchBtn'),
+        out=document.getElementById('nearest');
   btn.disabled=true; out.textContent='Searching…';
   try{
     if(!homePos){
@@ -201,13 +217,13 @@ async function runSearch(){
     await fillHomeEtas();
     table.clear().rows.add(rows).draw(); renderCards(rows);
 
-    const zoomRow=rows.find(r=>String(r.ADDRESS_RAW).toLowerCase().includes('zoom'));
+    const zoomRow = rows.find(r=>String(r.ADDRESS_RAW).toLowerCase().includes('zoom'));
 
-    const results=rows.filter(r=>typeof r.ETA_HOME==='number')
-                      .map(r=>({eta:r.ETA_HOME,row:r}))
-                      .sort((a,b)=>a.eta-b.eta);
+    const results = rows.filter(r=>typeof r.ETA_HOME==='number')
+                        .map(r=>({eta:r.ETA_HOME,row:r}))
+                        .sort((a,b)=>a.eta-b.eta);
 
-    const within3=results.filter(x=>x.eta<=3);
+    const within3 = results.filter(x=>x.eta<=3);
     let show;
     if(within3.length>2) show=within3;
     else{
