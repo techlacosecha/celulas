@@ -161,13 +161,20 @@ function renderCards(list){
   }).join('');
 }
 
-/* ---------- fill ETA from home for all rows ---------- */
+/* ---------- fill ETA from home for all rows (safe) ---------- */
 async function fillHomeEtas(){
   await Promise.all(rows.map(async r=>{
-    if(r.ETA_HOME!=null) return;
-    const addr=r.ADDRESS_RAW.split('-').pop().trim();
-    const m=await driveMin(homePos,addr);
-    r.ETA_HOME=m; r['ADDRESS']=m!=null?`≈ ${m} min`:'—';
+    if (r.ETA_HOME != null) return;                 // already done
+    const raw = r.ADDRESS_RAW;
+    if (!raw || typeof raw !== 'string' ||
+        raw.trim().toLowerCase() === 'zoom'){       // skip Zoom / blanks
+      r.ETA_HOME = null;
+      return;
+    }
+    const addr = raw.split('-').pop().trim();
+    const m = await driveMin(homePos, addr);
+    r.ETA_HOME = m;
+    r['ADDRESS'] = m != null ? `≈ ${m} min` : '—';
   }));
 }
 
@@ -188,9 +195,11 @@ async function runSearch(){
 
     const zoomRow=rows.find(r=>String(r.ADDRESS_RAW).toLowerCase().includes('zoom'));
 
-    const results=rows.filter(r=>r.ETA_HOME!=null)
-                      .map(r=>({eta:r.ETA_HOME,row:r}))
-                      .sort((a,b)=>a.eta-b.eta);
+   const results = rows
+  .filter(r => r.ETA_HOME != null)                 // keep rows that have ETA
+  .map(r => ({eta: r.ETA_HOME, row: r}))
+  .sort((a,b) => a.eta - b.eta);
+
 
     const within3=results.filter(x=>x.eta<=3);
     let show;
