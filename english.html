@@ -210,6 +210,11 @@ async function runSearch(){
         show.push({eta:'—',row:zoomRow});
     }
 
+        if (!show.length) {
+  out.textContent = 'No nearby cells found.';
+  btn.disabled = false;
+  return;}
+
     show.forEach(x=>x.row['ADDRESS']=x.eta!=='—'?`≈ ${x.eta} min`:'Zoom');
     const best=show[0];
     out.textContent=`≈ ${best.eta} min to the nearest cell (#${best.row['#']} – ${best.row['ZONE']})`;
