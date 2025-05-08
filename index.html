@@ -154,15 +154,22 @@ function renderCards(list){
   }).join('');
 }
 
-/* ---------- calcula ETA casa → todas las celdas una sola vez ---------- */
+/* ---------- fill ETA casa → todas las filas (seguro) ---------- */
 async function fillHomeEtas(){
   await Promise.all(rows.map(async r=>{
-    if(r.ETA_HOME!=null) return;
-    const addr=r.DIRECCION_RAW.split('-').pop().trim();
-    const m=await driveMin(homePos,addr);
-    r.ETA_HOME=m; r['DIRECCION']=m!=null?`≈ ${m} min`:'—';
+    if (r.ETA_HOME != null) return;           // ya calculado
+    const raw = r.DIRECCION_RAW;
+    if (!raw || typeof raw !== 'string'){     // vacío o no texto ⇒ saltar
+      r.ETA_HOME = null;
+      return;
+    }
+    const addr = raw.split('-').pop().trim();
+    const m = await driveMin(homePos, addr);
+    r.ETA_HOME = m;
+    r['DIRECCION'] = m != null ? `≈ ${m} min` : '—';
   }));
 }
+
 
 /* ---------- búsqueda del usuario ---------- */
 async function runSearch(){
@@ -180,10 +187,11 @@ async function runSearch(){
     table.clear().rows.add(rows).draw();  // refresca DataTable con nuevos ETA
     renderCards(rows);
 
-    /* elegir filas a mostrar según regla */
-    const results = rows.map(r=>({eta:r.ETA_HOME,row:r}))
-                         .filter(x=>x.eta!=null)
-                         .sort((a,b)=>a.eta-b.eta);
+    const results = rows
+  .filter(r => typeof r.ETA_HOME === 'number')     // solo filas con ETA válida
+  .map(r => ({eta: r.ETA_HOME, row: r}))
+  .sort((a,b) => a.eta - b.eta);
+
 
     const within3=results.filter(x=>x.eta<=3);
     const show = within3.length>2 ? within3
