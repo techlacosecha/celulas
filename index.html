@@ -131,14 +131,23 @@ const geoCache=new Map();
   }
 })();
 
+/* ---- card renderer: show EVERY column, same order as the table ---- */
 function renderCards(list){
-  cardsDiv.innerHTML=list.map(o=>`
-    <div class="card">
-      <h2>#${o['#']} – ${o['ZONA']}</h2>
-      <p><strong>Dirección:</strong> ${o['DIRECCION']}</p>
-      <p><strong>Día / Hora:</strong> ${o['DIA']} ${o['HORA']}</p>
-    </div>
-  `).join('');
+  /* Get the column order from DataTables if it’s already built;
+     otherwise fall back to Object.keys of the first row */
+  const order =
+    table
+      ? table.settings()[0].aoColumns.map(c => c.sTitle)      // DataTables order
+      : (list[0] ? Object.keys(list[0]) : []);
+
+  cardsDiv.innerHTML = list.map(row => {
+    /* Build one <p> per column */
+    const rowsHtml = order.map(h =>
+      `<p><strong>${h}:</strong> ${row[h] ?? ''}</p>`).join('');
+
+    /* Card wrapper */
+    return `<div class="card">${rowsHtml}</div>`;
+  }).join('');
 }
 
 /* ------------ Google Maps ready ------------ */
