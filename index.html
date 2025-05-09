@@ -186,11 +186,16 @@ function buildUI() {
   });
   cardsDiv = document.getElementById('cards');
   filterAndDisplayCells(); 
-  $('#zonaSelect').on('change', function() {
-    // Este listener se activa cuando el usuario CAMBIA la selección en el dropdown de Zona.
-    // Incluye el caso donde el usuario selecciona "— Todas —" DESPUÉS de haber realizado una búsqueda de casa.
-    // filterAndDisplayCells() se encargará de mostrar todas las filas (si "Todas" está seleccionado)
-    // y de ordenarlas por ETA_FROM_HOME si homePos está establecido.
+
+  // MODIFICACIÓN DEL MANEJADOR DE EVENTOS PARA #zonaSelect:
+  // Se cambia de 'change' a 'mouseup'. El evento 'mouseup' se dispara cuando el usuario
+  // suelta el botón del ratón después de hacer clic en una opción del menú desplegable.
+  // Esto ayuda a asegurar que filterAndDisplayCells() se llame incluso si el usuario
+  // vuelve a seleccionar la opción que ya estaba activa (como "— Todas —"),
+  // ya que 'change' podría no dispararse en ese caso porque el valor no cambió técnicamente.
+  $('#zonaSelect').on('mouseup', function() {
+    // Llamar a filterAndDisplayCells CADA VEZ que el usuario interactúa (hace clic y suelta el ratón)
+    // con el selector de zona. Esto asegura que la tabla se actualice según la selección actual.
     filterAndDisplayCells(); 
   });
 }
@@ -200,8 +205,7 @@ function filterAndDisplayCells() {
   const selectedZone = $('#zonaSelect').val();
   let currentFilteredRows = selectedZone ? rows.filter(r => r['ZONA'] === selectedZone) : [...rows]; 
 
-  if (homePos) { // Si se ha buscado una dirección de casa...
-    // ...ordenar las filas a mostrar por ETA_FROM_HOME.
+  if (homePos) {
     currentFilteredRows.sort((a, b) => {
       if (a.ETA_FROM_HOME === null && b.ETA_FROM_HOME === null) return 0;
       if (a.ETA_FROM_HOME === null) return 1;  
@@ -370,16 +374,10 @@ async function runSearch() {
       }
       renderCards(displayDataForInitialTable);
 
-      // Bloque de código ELIMINADO aquí.
-      // Ya no se llama a filterAndDisplayCells() automáticamente si "Todas" está seleccionado.
-      // El comportamiento ahora es:
-      // 1. runSearch muestra el subconjunto de células cercanas.
-      // 2. La tabla permanece con este subconjunto.
-      // 3. Si el usuario LUEGO interactúa con el filtro de Zona y selecciona "— Todas —" (o cualquier otra zona),
-      //    el evento 'change' en #zonaSelect activará filterAndDisplayCells(), que entonces:
-      //    a) Obtendrá TODAS las filas si "— Todas —" fue seleccionado.
-      //    b) Ordenará estas filas por ETA_FROM_HOME (ya que homePos está establecido).
-      //    c) Actualizará la tabla para mostrar todas estas filas con sus ETAs desde casa.
+      // El bloque que llamaba a filterAndDisplayCells() aquí si "Todas" estaba seleccionado HA SIDO ELIMINADO
+      // según tu última indicación. Ahora, runSearch() solo muestra el subconjunto cercano.
+      // El usuario DEBE interactuar explícitamente con el filtro de Zona (ej. seleccionar "Todas")
+      // para que filterAndDisplayCells() se active y muestre todas las células (ordenadas por ETA si homePos está activo).
 
     } else { 
       outNearestDiv.textContent = 'No se encontraron células cercanas o no se pudo calcular el tiempo de viaje.';
