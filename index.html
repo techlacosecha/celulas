@@ -8,55 +8,55 @@
       href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
 <style>
 /* -------- Estilos CSS -------- */
-/* Body styles: Sets default font, removes margin, and sets background color. */
+/* Estilos del body: Define la fuente por defecto, elimina el margen y establece el color de fondo. */
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
 
-/* Header banner styles: Ensures the banner image is responsive and fits well. */
+/* Estilos del banner del encabezado: Asegura que la imagen del banner sea responsiva y se ajuste bien. */
 header .banner{display:block;width:100%;height:auto;max-height:25vh;object-fit:contain;margin:0}
 
-/* Controls container styles: For the zone filter and address search input. Uses flexbox for layout. */
+/* Estilos del contenedor de controles: Para el filtro de zona y la entrada de búsqueda de dirección. Usa flexbox para el diseño. */
 .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
-/* Styles for select dropdown and text input: Padding, font size, border. */
+/* Estilos para el menú desplegable de selección y la entrada de texto: Relleno, tamaño de fuente, borde. */
 #zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
-/* Styles for home address input: Minimum width and flex properties for responsiveness. */
+/* Estilos para la entrada de dirección de casa: Ancho mínimo y propiedades flex para responsividad. */
 #homeInput{min-width:260px;flex:1 1 260px}
-/* Placeholder text color for the address input. */
+/* Color del texto del placeholder para la entrada de dirección. */
 #homeInput::placeholder{color:#999}
-/* Search button styles: Padding, font, border, background, color, cursor. */
+/* Estilos del botón de búsqueda: Relleno, fuente, borde, fondo, color, cursor. */
 #searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
-/* Styles for the search button when disabled: Reduced opacity and 'not-allowed' cursor. */
+/* Estilos para el botón de búsqueda cuando está deshabilitado: Opacidad reducida y cursor 'not-allowed'. */
 #searchBtn:disabled{opacity:.5;cursor:not-allowed}
 
-/* Table wrapper styles: Fixed height, enables scrolling for overflow, padding. */
+/* Estilos del contenedor de la tabla: Altura fija, habilita el desplazamiento para el desbordamiento, relleno. */
 .table-wrapper{height:65vh;overflow:auto;padding:0 2rem 1.5rem}
-/* DataTable styles: Border, border collapse, width, table layout. */
+/* Estilos de DataTable: Borde, colapso de borde, ancho, diseño de tabla. */
 table.dataTable{border:2px solid #13284b;border-collapse:collapse;width:100%;table-layout:fixed}
-/* DataTable header cell styles: Background, color, border, font weight, text alignment. */
+/* Estilos de las celdas del encabezado de DataTable: Fondo, color, borde, grosor de fuente, alineación de texto. */
 table.dataTable thead th{background:#2d57a3;color:#fff;border:1px solid #13284b;font-weight:700;text-align:center}
-/* DataTable data cell styles: Border, padding, word wrap for long text. */
+/* Estilos de las celdas de datos de DataTable: Borde, relleno, ajuste de palabra para texto largo. */
 table.dataTable td{border:1px solid #ccc;padding:6px 4px;word-wrap:break-word}
-/* Style for the first cell in each body row (typically the '#' column): Background, font weight, alignment. */
+/* Estilo para la primera celda en cada fila del cuerpo (típicamente la columna '#'): Fondo, grosor de fuente, alineación. */
 table.dataTable tbody td:nth-child(1){background:#eee;font-weight:700;text-align:center}
-/* Zebra striping for even rows in the DataTable body. */
+/* Rayado tipo cebra para filas pares en el cuerpo de DataTable. */
 table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 
-/* Card container styles (for mobile view): Initially hidden, padding, scrolling, fixed height. */
+/* Estilos del contenedor de tarjetas (para vista móvil): Inicialmente oculto, relleno, desplazamiento, altura fija. */
 .cards{display:none;padding:0 1rem 2rem;overflow:auto;height:65vh}
-/* Individual card styles: Border, radius, margin, padding, background, shadow. */
+/* Estilos de tarjetas individuales: Borde, radio, margen, relleno, fondo, sombra. */
 .card{border:1px solid #ccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-/* Paragraph styles within cards: Margin, font size. */
+/* Estilos de párrafos dentro de las tarjetas: Margen, tamaño de fuente. */
 .card p{margin:.25rem 0;font-size:.95rem}
 
-/* Media query for smaller screens (max-width 900px): Hides table, shows cards, adjusts controls margin. */
+/* Media query para pantallas más pequeñas (ancho máximo 900px): Oculta la tabla, muestra las tarjetas, ajusta el margen de los controles. */
 @media(max-width:900px){
-  .table-wrapper{display:none} /* Hide the table wrapper */
-  .cards{display:block}       /* Display the cards container */
-  .controls{margin:1rem}      /* Adjust margin for the controls area */
+  .table-wrapper{display:none} /* Ocultar el contenedor de la tabla */
+  .cards{display:block}       /* Mostrar el contenedor de las tarjetas */
+  .controls{margin:1rem}      /* Ajustar el margen para el área de controles */
 }
 
-/* Styles for the 'nearest cell' message div. */
+/* Estilos para el div del mensaje de 'célula más cercana'. */
 #nearest{margin:.5rem 2rem 0;font-weight:600}
-/* Styles for the error message div. */
+/* Estilos para el div del mensaje de error. */
 #error{color:#c00;margin:1rem 2rem 0;font-weight:700}
 </style>
 </head>
@@ -82,481 +82,483 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 
 <script>
 /* ==========================================================================
-   JavaScript Logic for Cell Finder Application
+   Lógica JavaScript para la Aplicación Buscador de Células
    ========================================================================== */
 
-/* ---------- CONSTANTES GLOBALES (GLOBAL CONSTANTS) ---------- */
-// HUB_ADDR: The fixed street address of the church (La Cosecha).
-// This is used as the default origin for calculating travel times to cells
-// and as the specific location for cells in the "La Cosecha" zone.
+/* ---------- CONSTANTES GLOBALES ---------- */
+// HUB_ADDR: La dirección física de la iglesia (La Cosecha).
+// Se usa como el origen por defecto para calcular los tiempos de viaje a las células
+// y como la ubicación específica para las células en la zona "La Cosecha".
 const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
 
-/* ---------- ESTADO GLOBAL DE LA APLICACIÓN (GLOBAL APPLICATION STATE) ---------- */
-// headES: Array to store column headers extracted from the Excel sheet.
-// Example: ['#', 'ZONA', 'LIDER', 'DIRECCION', ...]
+/* ---------- ESTADO GLOBAL DE LA APLICACIÓN ---------- */
+// headES: Array para almacenar los encabezados de las columnas extraídos de la hoja de Excel.
+// Ejemplo: ['#', 'ZONA', 'LIDER', 'DIRECCION', ...]
 let headES = [];
 
-// rows: Array of objects, where each object represents a cell (bible study group).
-// Each object's properties correspond to the headers in 'headES'.
-// This array is populated by loadSheet() and is the primary data source.
-// Additional properties like 'ETA_FROM_HUB', 'ETA_FROM_HOME', etc., are added during processing.
+// rows: Array de objetos, donde cada objeto representa una célula (grupo de estudio bíblico).
+// Las propiedades de cada objeto corresponden a los encabezados en 'headES'.
+// Este array se llena mediante loadSheet() y es la fuente de datos principal.
+// Propiedades adicionales como 'ETA_FROM_HUB', 'ETA_FROM_HOME', etc., se añaden durante el procesamiento.
 let rows = [];
 
-// table: Variable to hold the initialized DataTables instance.
-// This allows interaction with the table API (e.g., table.clear(), table.rows.add()).
+// table: Variable para mantener la instancia inicializada de DataTables.
+// Permite interactuar con la API de la tabla (ej., table.clear(), table.rows.add()).
 let table;
 
-// cardsDiv: Reference to the DOM element (div) where cell information cards are rendered for mobile view.
+// cardsDiv: Referencia al elemento DOM (div) donde se renderizan las tarjetas de información de las células para la vista móvil.
 let cardsDiv;
 
-// geocoder: Instance of google.maps.Geocoder. Used to convert textual addresses into geographic coordinates (latitude/longitude).
+// geocoder: Instancia de google.maps.Geocoder. Se usa para convertir direcciones textuales en coordenadas geográficas (latitud/longitud).
 let geocoder;
 
-// distSvc: Instance of google.maps.DistanceMatrixService. Used to calculate travel distance and time between origins and destinations.
+// distSvc: Instancia de google.maps.DistanceMatrixService. Se usa para calcular la distancia y el tiempo de viaje entre orígenes y destinos.
 let distSvc;
 
-// homePos: Stores the geographic coordinates {lat, lng} of the user's entered home address.
-// It's null initially or if the address is invalid/cleared. This state determines ETA calculations.
+// homePos: Almacena las coordenadas geográficas {lat, lng} de la dirección de casa introducida por el usuario.
+// Es null inicialmente o si la dirección es inválida/borrada. Este estado determina los cálculos de ETA.
 let homePos = null;
 
-// geoCache: A JavaScript Map object used to cache the results of geocoding address strings.
-// Key: address string, Value: {lat, lng} object or null (if geocoding failed).
-// This helps reduce redundant API calls to the Geocoding service, saving quotas and improving performance.
+// geoCache: Un objeto Map de JavaScript usado para cachear los resultados de la geocodificación de direcciones.
+// Clave: cadena de dirección, Valor: objeto {lat, lng} o null (si la geocodificación falló).
+// Esto ayuda a reducir llamadas redundantes a la API del servicio de Geocodificación, ahorrando cuotas y mejorando el rendimiento.
 const geoCache = new Map();
 
-/* ---------- INICIALIZACIÓN DE GOOGLE MAPS (GOOGLE MAPS INITIALIZATION) ---------- */
-// This function is designated as the callback for the Google Maps API script.
-// It executes once the Google Maps API (including the Places library) is fully loaded and ready.
+/* ---------- INICIALIZACIÓN DE GOOGLE MAPS ---------- */
+// Esta función se designa como el callback para el script de la API de Google Maps.
+// Se ejecuta una vez que la API de Google Maps (incluida la biblioteca Places) está completamente cargada y lista.
 async function gmapsReady() {
-  // Initialize the Geocoder and DistanceMatrixService objects.
+  // Inicializar los servicios de Geocoder y DistanceMatrixService de Google Maps.
   geocoder = new google.maps.Geocoder();
   distSvc = new google.maps.DistanceMatrixService();
   
-  // Asynchronously load and process data from the 'celulas.xlsx' file.
-  // This function also calls buildUI() upon successful data loading.
+  // Cargar y procesar de forma asíncrona los datos del archivo 'celulas.xlsx'.
+  // Esta función también llama a buildUI() tras la carga exitosa de los datos.
   await loadSheet();
 
-  // Get the DOM element for the home address input field.
+  // Obtener el elemento DOM del campo de entrada de la dirección de casa.
   const autocompleteInput = document.getElementById('homeInput');
-  // Initialize Google Places Autocomplete on the input field.
-  // 'types: ['geocode']' restricts suggestions to geocoding results (addresses).
+  // Inicializar Google Places Autocomplete en el campo de entrada.
+  // 'types: ['geocode']' restringe las sugerencias a resultados de geocodificación (direcciones).
   const ac = new google.maps.places.Autocomplete(autocompleteInput, { types: ['geocode'] });
 
-  // Add an event listener for the 'place_changed' event on the Autocomplete instance.
-  // This event fires when the user selects a suggested address from the dropdown.
+  // Añadir un listener para el evento 'place_changed' en la instancia de Autocomplete.
+  // Este evento se dispara cuando el usuario selecciona una dirección sugerida del menú desplegable.
   ac.addListener('place_changed', () => {
-    const place = ac.getPlace(); // Get the PlaceResult object for the selected place.
-    const wasHomePosSet = !!homePos; // Boolean: Was homePos previously set (not null)?
+    const place = ac.getPlace(); // Obtener el objeto PlaceResult para el lugar seleccionado.
+    const wasHomePosSet = !!homePos; // Booleano: ¿Estaba homePos previamente establecido (no era null)?
 
-    // Update the global 'homePos' state with the coordinates of the selected place.
-    // If the place has geometry data, extract lat/lng. Otherwise, set homePos to null.
+    // Actualizar el estado global 'homePos' con las coordenadas del lugar seleccionado.
+    // Si el lugar tiene datos de geometría, extraer lat/lng. De lo contrario, establecer homePos a null.
     homePos = place.geometry ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : null;
 
-    // Logic to handle cases where the home address input is cleared or becomes invalid:
-    if (!homePos && wasHomePosSet) { // If homePos is now null AND it was previously set (meaning it was just cleared)
-      document.getElementById('nearest').textContent = ''; // Clear any previous "nearest cell" message.
+    // Lógica para manejar casos donde la entrada de dirección de casa se borra o se vuelve inválida:
+    if (!homePos && wasHomePosSet) { // Si homePos es ahora null Y estaba previamente establecido (es decir, se acaba de borrar)
+      document.getElementById('nearest').textContent = ''; // Limpiar cualquier mensaje previo de "célula más cercana".
       
-      // Revert the 'DIRECCION' column header in the DataTable to its initial state.
-      const direccionOriginalHeaderKey = 'DIRECCION'; // The data key for the address/ETA column.
-      const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey); // Find the column's index.
-      if (direccionColumnIndex !== -1 && table) { // If column exists and table is initialized.
-        const column = table.column(direccionColumnIndex); // Get the DataTables column object.
-        $(column.header()).html('conducir desde la iglesia'); // Update header text using jQuery.
+      // Revertir el encabezado de la columna 'DIRECCION' en la DataTable a su estado inicial.
+      const direccionOriginalHeaderKey = 'DIRECCION'; // La clave de datos para la columna de dirección/ETA.
+      const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey); // Encontrar el índice de la columna.
+      if (direccionColumnIndex !== -1 && table) { // Si la columna existe y la tabla está inicializada.
+        const column = table.column(direccionColumnIndex); // Obtener el objeto de columna de DataTables.
+        $(column.header()).html('CONDUCIR DESDE LA IGLESIA'); // Actualizar el texto del encabezado usando jQuery.
       }
       
-      // Refresh the displayed data in the table and cards.
-      // Since homePos is now null, filterAndDisplayCells will use default ETAs (from church)
-      // or the special text for "La Cosecha" zone.
+      // Refrescar los datos mostrados en la tabla y las tarjetas.
+      // Como homePos es ahora null, filterAndDisplayCells usará los ETAs por defecto (desde la iglesia)
+      // o el texto especial para la zona "La Cosecha".
       filterAndDisplayCells(); 
     }
-    // If homePos is newly set (user selected a valid address), the actual search and ETA calculations
-    // are triggered by the 'runSearch' function (via button click or Enter key).
-    // 'runSearch' will then handle updating the column header to "conduce desde tu casa".
+    // Si homePos se establece de nuevo (el usuario seleccionó una dirección válida), la búsqueda real y los cálculos de ETA
+    // se activan mediante la función 'runSearch' (a través del clic del botón o la tecla Enter).
+    // 'runSearch' se encargará entonces de actualizar el encabezado de la columna a "conduce desde tu casa".
   });
 
-  // Add a click event listener to the search button.
+  // Añadir un listener de evento de clic al botón de búsqueda.
   document.getElementById('searchBtn').addEventListener('click', runSearch);
 
-  // Add a keypress event listener to the home address input field.
-  // This allows the user to initiate a search by pressing the 'Enter' key.
+  // Añadir un listener de evento de pulsación de tecla al campo de entrada de dirección de casa.
+  // Esto permite al usuario iniciar una búsqueda presionando la tecla 'Enter'.
   autocompleteInput.addEventListener('keypress', function(event) {
-    if (event.key === 'Enter') { // Check if the pressed key was 'Enter'.
-      event.preventDefault(); // Prevent any default browser action for 'Enter' (e.g., form submission).
-      runSearch(); // Call the main search function.
+    if (event.key === 'Enter') { // Comprobar si la tecla presionada fue 'Enter'.
+      event.preventDefault(); // Prevenir cualquier acción por defecto del navegador para 'Enter' (ej., envío de formulario).
+      runSearch(); // Llamar a la función principal de búsqueda.
     }
   });
 }
 
-/* ---------- PROCESAMIENTO DE DATOS DE EXCEL (EXCEL DATA PROCESSING) ---------- */
-// This asynchronous function fetches 'celulas.xlsx', reads its content,
-// processes the data for each cell, and calculates initial ETAs from the church.
+/* ---------- PROCESAMIENTO DE DATOS DE EXCEL ---------- */
+// Esta función asíncrona obtiene 'celulas.xlsx', lee su contenido,
+// procesa los datos para cada célula y calcula los ETAs iniciales desde la iglesia.
 async function loadSheet() {
   try {
-    // Fetch the Excel file from the server.
+    // Obtener el archivo Excel del servidor.
     const response = await fetch('celulas.xlsx');
-    // Get the file content as an ArrayBuffer.
+    // Obtener el contenido del archivo como un ArrayBuffer.
     const arrayBuffer = await response.arrayBuffer();
-    // Parse the ArrayBuffer into a workbook object using SheetJS (XLSX library).
+    // Analizar el ArrayBuffer en un objeto workbook usando SheetJS (biblioteca XLSX).
     const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-    // Determine the sheet name to use: preferentially 'Consolidado', otherwise the first sheet.
+    // Determinar el nombre de la hoja a usar: preferentemente 'Consolidado', de lo contrario la primera hoja.
     const sheetName = workbook.Sheets['Consolidado'] ? 'Consolidado' : workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName]; // Get the sheet object.
+    const sheet = workbook.Sheets[sheetName]; // Obtener el objeto de la hoja.
     
-    // Convert the sheet's data into an array of arrays (rows and columns).
-    // 'header: 1' means the first row is treated as data (for header extraction).
-    // 'defval: ''' ensures empty cells are represented as empty strings.
+    // Convertir los datos de la hoja en un array de arrays (filas y columnas).
+    // 'header: 1' significa que la primera fila se trata como datos (para extracción de encabezados).
+    // 'defval: ''' asegura que las celdas vacías se representen como cadenas vacías.
     const sheetDataArray = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
     
-    // Extract the first row as headers. Trim whitespace from each header.
+    // Extraer la primera fila como encabezados. Recortar espacios en blanco de cada encabezado.
     headES = sheetDataArray[0].map(h => String(h).trim());
 
-    // Process the subsequent rows (cell data).
-    rows = sheetDataArray.slice(1) // Get all rows except the first (header) row.
-             .filter(rowArray => rowArray.some(cellValue => cellValue !== '')) // Filter out rows that are completely empty.
-             .map(rowArray => { // Transform each row (which is an array of values) into an object.
+    // Procesar las filas de datos subsiguientes (datos de las células).
+    rows = sheetDataArray.slice(1) // Obtener todas las filas excepto la primera (fila de encabezado).
+             .filter(rowArray => rowArray.some(cellValue => cellValue !== '')) // Filtrar filas que están completamente vacías.
+             .map(rowArray => { // Transformar cada fila (que es un array de valores) en un objeto.
                const rowObject = {};
-               // Use the extracted headers ('headES') as keys for the object properties.
+               // Usar los encabezados extraídos ('headES') como claves para las propiedades del objeto.
                headES.forEach((header, index) => rowObject[header] = rowArray[index]);
                return rowObject;
              })
-             .filter(rowObject => { // Filter cells based on the 'IDIOMA' (language) column.
-               const language = String(rowObject['IDIOMA']).toLowerCase(); // Get language, convert to lowercase.
-               return language === 'español' || language === 'bilingüe'; // Keep only Spanish or Bilingual cells.
+             .filter(rowObject => { // Filtrar células según la columna 'IDIOMA'.
+               const language = String(rowObject['IDIOMA']).toLowerCase(); // Obtener idioma, convertir a minúsculas.
+               return language === 'español' || language === 'bilingüe'; // Mantener solo células en Español o Bilingües.
              });
 
-    // Asynchronously process each row object to add calculated ETA properties.
-    await Promise.all(rows.map(async (o) => { // 'o' represents a single cell data object.
-      // Store the original address string from the "DIRECCION" column of the Excel sheet.
-      // This is important because o['DIRECCION'] itself might be used by DataTables for display later,
-      // and its content will be dynamically generated by filterAndDisplayCells.
+    // Procesar de forma asíncrona cada objeto de fila para añadir propiedades de ETA calculadas.
+    await Promise.all(rows.map(async (o) => { // 'o' representa un solo objeto de datos de célula.
+      // Almacenar la cadena de dirección original de la columna "DIRECCION" de Excel.
+      // o['DIRECCION'] actualmente contiene esta cadena. La guardaremos.
       o['DIRECCION_FROM_EXCEL'] = o['DIRECCION']; 
 
-      let effectiveAddressForRouting; // This will be the address used for ETA calculations.
-      // Special handling for cells in the "La Cosecha" zone.
+      let effectiveAddressForRouting; // Esta será la dirección usada para los cálculos de ETA.
+      // Manejo especial para células en la zona "La Cosecha".
       if (o['ZONA'] === 'La Cosecha') {
-        // For "La Cosecha" zone, all ETA calculations should use the church's main address (HUB_ADDR).
+        // Para la zona "La Cosecha", todos los cálculos de ETA usan la dirección principal de la iglesia (HUB_ADDR).
         effectiveAddressForRouting = HUB_ADDR;
       } else {
-        // For all other zones, use their own address as read from the Excel sheet.
+        // Para todas las demás zonas, usar su propia dirección tal como se leyó de la hoja de Excel.
         effectiveAddressForRouting = o['DIRECCION_FROM_EXCEL'];
       }
-      // Store this determined address on the cell object for later use in ETA calculations.
+      // Almacenar esta dirección determinada en el objeto de la célula para su uso posterior en cálculos de ETA.
       o['EFFECTIVE_ROUTING_ADDRESS'] = effectiveAddressForRouting;
 
-      // Calculate the initial ETA from the Church (HUB_ADDR) to this cell's effective address.
-      // For "La Cosecha" zone, this means calculating ETA from HUB_ADDR to HUB_ADDR (which should be ~0 minutes).
+      // Calcular el ETA inicial desde la Iglesia (HUB_ADDR) hasta la dirección efectiva de esta célula.
+      // Para la zona "La Cosecha", esto significará calcular el ETA desde HUB_ADDR hasta HUB_ADDR (lo que debería ser ~0 minutos).
       const etaHub = await driveMinutes(HUB_ADDR, o['EFFECTIVE_ROUTING_ADDRESS']);
-      o['ETA_FROM_HUB'] = etaHub; // Store the numeric ETA (in minutes) or null if calculation failed.
+      o['ETA_FROM_HUB'] = etaHub; // Almacenar el ETA numérico (en minutos) o null si el cálculo falló.
 
-      // Initialize the property for storing ETA from the user's home address.
-      o['ETA_FROM_HOME'] = null; // Will be populated by runSearch().
+      // Inicializar la propiedad para almacenar el ETA desde la dirección de casa del usuario.
+      o['ETA_FROM_HOME'] = null; // Será llenado por runSearch().
 
-      // Note: The actual 'DIRECCION' property of the object 'o' (which is part of the 'rows' array)
-      // is no longer set to a formatted ETA string here.
-      // The 'filterAndDisplayCells()' function will now be solely responsible for constructing the
-      // display string for the 'DIRECCION' column dynamically based on context (home search or default).
+      // Nota Importante: Ya no establecemos o['DIRECCION'] a una cadena de ETA formateada aquí.
+      // La función filterAndDisplayCells() será ahora la única responsable de construir la cadena
+      // de visualización para la columna 'DIRECCION' dinámicamente según el contexto (búsqueda de casa o por defecto).
+      // o['DIRECCION'] conservará su valor original de Excel hasta la visualización.
     }));
 
-    // After all data is loaded and processed, build the main user interface components.
+    // Después de que todos los datos se cargan y procesan, construir los componentes principales de la interfaz de usuario.
     buildUI();
   } catch(e) {
-    // If any error occurs during loading or processing, display it in the error div.
+    // Si ocurre algún error durante la carga o el procesamiento, mostrarlo en el div de error.
     $('#error').show().text("Error cargando los datos de las células: " + e.message);
-    console.error("Error in loadSheet:", e); // Also log to console for debugging.
+    console.error("Error in loadSheet:", e); // También registrar en la consola para depuración.
   }
 }
 
 /* ---------- CONSTRUCCIÓN DE LA INTERFAZ DE USUARIO (UI CONSTRUCTION) ---------- */
-// This function initializes the DataTable, populates the zone filter, and sets up event listeners.
+// Esta función inicializa la DataTable, llena el filtro de zona y configura los listeners de eventos.
 function buildUI() {
-  // Populate the 'Zona' (Zone) filter dropdown.
-  // 1. Get all 'ZONA' values from the 'rows' data.
-  // 2. Filter out any empty or null zone values.
-  // 3. Create a Set to get unique zone names.
-  // 4. Convert Set back to an array and sort it alphabetically.
-  // 5. For each unique zone, add an <option> element to the '#zonaSelect' dropdown.
+  // Llenar el menú desplegable del filtro 'Zona'.
+  // 1. Obtener todos los valores de 'ZONA' de los datos de 'rows'.
+  // 2. Filtrar cualquier valor de zona vacío o nulo.
+  // 3. Crear un Set para obtener nombres de zona únicos.
+  // 4. Convertir el Set de nuevo a un array y ordenarlo alfabéticamente.
+  // 5. Para cada zona única, añadir un elemento <option> al menú desplegable '#zonaSelect'.
   [...new Set(rows.map(r => r['ZONA']).filter(Boolean))].sort()
     .forEach(zone => $('#zonaSelect').append(`<option value="${zone}">${zone}</option>`));
 
-  // Get the indices of the '#' and 'ZONA' columns from the 'headES' array.
-  // These are used for setting the default sorting order in the DataTable.
+  // Obtener los índices de las columnas '#' y 'ZONA' del array 'headES'.
+  // Se usan para establecer el orden de clasificación por defecto en la DataTable.
   const numIdx = headES.indexOf('#'); 
   const zonaIdx = headES.indexOf('ZONA'); 
-  // Define the original key from the Excel data for the 'DIRECCION' column.
-  // This is used when mapping columns and setting the initial title.
+  // Definir la clave original de los datos de Excel para la columna 'DIRECCION'.
+  // Se usa al mapear columnas y establecer el título inicial.
   const direccionOriginalHeaderKey = 'DIRECCION'; 
 
-  // Initialize the DataTable on the '#tabla' HTML element.
+  // Inicializar la DataTable en el elemento HTML '#tabla'.
   table = $('#tabla').DataTable({
-    // Define columns for the DataTable.
-    columns: headES.map(originalHeaderName => { // Iterate over each header from 'headES'.
-      let displayTitle = originalHeaderName; // Default display title is the original header name.
-      // If this is the 'DIRECCION' column, set its initial display title.
+    // Definir columnas para la DataTable.
+    columns: headES.map(originalHeaderName => { // Iterar sobre cada encabezado de 'headES'.
+      let displayTitle = originalHeaderName; // El título de visualización por defecto es el nombre original del encabezado.
+      // Si esta es la columna 'DIRECCION', establecer su título de visualización inicial.
       if (originalHeaderName === direccionOriginalHeaderKey) {
-        displayTitle = 'conducir desde la iglesia'; // Initial title before any home search.
+        displayTitle = 'CONDUCIR DESDE LA IGLESIA'; // Título inicial antes de cualquier búsqueda de casa.
       }
-      // For each column, return an object specifying its 'title' (displayed header)
-      // and 'data' (the property name in the row objects from which to get data).
+      // Para cada columna, devolver un objeto especificando su 'title' (encabezado mostrado)
+      // y 'data' (el nombre de la propiedad en los objetos de fila de donde obtener los datos).
       return { title: displayTitle, data: originalHeaderName };
     }),
-    // Set default sorting order: by '#' column ascending, then by 'ZONA' column ascending.
-    // This is applied only if both columns are found.
+    // Establecer el orden de clasificación por defecto: por columna '#' ascendente, luego por columna 'ZONA' ascendente.
+    // Se aplica solo si ambas columnas se encuentran.
     order: (numIdx !== -1 && zonaIdx !== -1) ? [[numIdx, 'asc'], [zonaIdx, 'asc']] : [], 
-    pageLength: 10 // Display 10 rows per page by default.
+    pageLength: 10 // Mostrar 10 filas por página por defecto.
   });
-  // Get a reference to the DOM element where cards will be rendered (for mobile view).
+  // Obtener una referencia al elemento DOM donde se renderizarán las tarjetas (para vista móvil).
   cardsDiv = document.getElementById('cards');
   
-  // Perform the initial population of the DataTable and cards with processed cell data.
+  // Realizar la población inicial de la DataTable y las tarjetas con los datos de las células procesados.
   filterAndDisplayCells(); 
 
-  // Add an event listener to the 'Zona' filter dropdown.
-  // When the selected zone changes, call filterAndDisplayCells to update the view.
+  // Añadir un listener de evento al menú desplegable del filtro 'Zona'.
+  // Cuando la zona seleccionada cambie, llamar a filterAndDisplayCells para actualizar la vista.
   $('#zonaSelect').on('change', function() {
     filterAndDisplayCells(); 
   });
 }
 
 /* ---------- FILTRADO Y VISUALIZACIÓN DE CÉLULAS (CELL FILTERING AND DISPLAY) ---------- */
-// This function is responsible for:
-// 1. Filtering the 'rows' data based on the selected zone.
-// 2. Preparing the data for display (dynamically setting the 'DIRECCION' field).
-// 3. Updating the DataTable and the cards view with the filtered/prepared data.
+// Esta función es responsable de:
+// 1. Filtrar los datos de 'rows' según la zona seleccionada.
+// 2. Preparar los datos para la visualización (estableciendo dinámicamente el campo 'DIRECCION').
+// 3. Actualizar la DataTable y la vista de tarjetas con los datos filtrados/preparados.
 function filterAndDisplayCells() {
-  const selectedZone = $('#zonaSelect').val(); // Get the value of the currently selected zone.
-  // Filter the global 'rows' array.
-  // If a 'selectedZone' is truthy (not empty string), filter by that zone.
-  // Otherwise (if "— Todas —" is selected, value is ""), use all rows.
-  // A shallow copy `[...rows]` is used for the "all zones" case to avoid direct modification risks if any.
+  const selectedZone = $('#zonaSelect').val(); // Obtener el valor de la zona actualmente seleccionada.
+  // Filtrar el array global 'rows'.
+  // Si 'selectedZone' tiene un valor (no es una cadena vacía), filtrar por esa zona.
+  // De lo contrario (si se selecciona "— Todas —", el valor es ""), usar todas las filas.
+  // Se usa una copia superficial `[...rows]` para el caso "todas las zonas" para evitar riesgos de modificación directa.
   let currentFilteredRows = selectedZone ? rows.filter(r => r['ZONA'] === selectedZone) : [...rows]; 
 
-  // Map over the 'currentFilteredRows' to create a 'displayList'.
-  // Each item in 'displayList' is a 'cellForDisplay' object, which is a copy of a cell's data
-  // but with the 'DIRECCION' property specifically formatted for display.
+  // Mapear sobre 'currentFilteredRows' para crear una 'displayList'.
+  // Cada ítem en 'displayList' es un objeto 'cellForDisplay', que es una copia de los datos de una célula
+  // pero con la propiedad 'DIRECCION' específicamente formateada para la visualización.
   const displayList = currentFilteredRows.map(cell => {
-    const cellForDisplay = {...cell}; // Create a shallow copy of the cell data to modify for display.
+    const cellForDisplay = {...cell}; // Crear una copia superficial de los datos de la célula para modificarla para visualización.
 
-    // Logic to determine the content of the 'DIRECCION' column for this cell:
+    // Lógica para determinar el contenido de la columna 'DIRECCION' para esta célula:
     if (homePos && typeof cell.ETA_FROM_HOME === 'number') { 
-      // CASE 1: A home address has been successfully searched (homePos is set)
-      // AND a valid numeric ETA from home exists for this particular cell.
-      // Display the ETA from the user's home.
-      // This also applies to "La Cosecha" zone cells, showing ETA from home to the church.
+      // CASO 1: Se ha realizado una búsqueda de dirección de casa exitosa (homePos está establecido)
+      // Y existe un ETA numérico válido desde casa para esta célula en particular.
+      // Mostrar el ETA desde la casa del usuario.
+      // Esto también se aplica a las células de la zona "La Cosecha", mostrando el ETA desde casa hasta la iglesia.
       cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
     } else { 
-      // CASE 2: Fallback scenario - No home address search done, or ETA from home isn't available for this cell.
+      // CASO 2: Escenario de fallback - No se ha realizado búsqueda de casa, o el ETA desde casa no está disponible para esta célula.
       if (cell['ZONA'] === 'La Cosecha') {
-        // For cells in the "La Cosecha" zone, display the special static text.
+        // Para células en la zona "La Cosecha", mostrar el texto estático especial.
         cellForDisplay['DIRECCION'] = 'Planta baja de la Iglesia (reunion general)';
       } else {
-        // For cells in other zones, display their ETA from the Hub (church).
-        // If 'ETA_FROM_HUB' is null (e.g., address was unroutable from hub), display '—'.
+        // Para células en otras zonas, mostrar su ETA desde el Hub (iglesia).
+        // Si 'ETA_FROM_HUB' es null (ej., dirección no enrutable desde el hub), mostrar '—'.
         cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min` : '—';
       }
     }
-    return cellForDisplay; // Return the prepared object for display.
+    return cellForDisplay; // Devolver el objeto preparado para visualización.
   });
 
-  // If the DataTable instance ('table') has been initialized:
+  // Si la instancia de DataTable ('table') ha sido inicializada:
   if (table) { 
-    table.clear(); // Remove all existing rows from the table.
-    table.rows.add(displayList); // Add the new 'displayList' data.
-    table.draw(); // Redraw the table to reflect the changes.
+    table.clear(); // Eliminar todas las filas existentes de la tabla.
+    table.rows.add(displayList); // Añadir los nuevos datos de 'displayList'.
+    table.draw(); // Redibujar la tabla para reflejar los cambios.
   }
-  // If the cards container div ('cardsDiv') exists:
+  // Si el div contenedor de tarjetas ('cardsDiv') existe:
   if (cardsDiv) { 
-    renderCards(displayList); // Render/update the cards view with the 'displayList' data.
+    renderCards(displayList); // Renderizar/actualizar la vista de tarjetas con los datos de 'displayList'.
   }
 }
 
 
 /* ---------- RENDERIZADO DE TARJETAS (CARD RENDERING) ---------- */
-// Generates HTML for individual cards (for mobile view) based on the provided list of cell data.
+// Genera HTML para tarjetas individuales (para vista móvil) basado en la lista de datos de células proporcionada.
 function renderCards(list) {
-  // 'list' here is the 'displayList' from filterAndDisplayCells, where each object
-  // (representing a cell) has its 'DIRECCION' property already formatted for display.
-  cardsDiv.innerHTML = list.map(cellObject => { // For each cell in the list...
-    // Create HTML paragraph elements for each piece of data in the cell.
-    // It iterates over 'headES' (original headers) and uses them to access properties from 'cellObject'.
+  // 'list' aquí es 'displayList' de filterAndDisplayCells, donde cada objeto
+  // (representando una célula) tiene su propiedad 'DIRECCION' ya formateada para visualización.
+  cardsDiv.innerHTML = list.map(cellObject => { // Para cada célula en la lista...
+    // Crear elementos de párrafo HTML para cada dato en la célula.
+    // Itera sobre 'headES' (encabezados originales) y los usa para acceder a las propiedades de 'cellObject'.
     const lines = headES.map(header => `<p><strong>${header}:</strong> ${cellObject[header]}</p>`).join('');
-    // Wrap these lines in a 'div' with class 'card'.
+    // Envolver estas líneas en un 'div' con la clase 'card'.
     return `<div class="card">${lines}</div>`;
-  }).join(''); // Join all card HTML strings into one big string and set as innerHTML.
+  }).join(''); // Unir todas las cadenas HTML de las tarjetas en una gran cadena y establecerla como innerHTML.
 }
 
 /* ---------- UTILIDADES DE GEOCODIFICACIÓN Y ETA (GEOCODING AND ETA UTILITIES) ---------- */
-// Asynchronous helper function to get geographic coordinates ({lat, lng}) for a given locationInput.
-// 'locationInput' can be an address string or an already formed {lat, lng} object.
-// Implements caching for address strings to reduce API calls.
+// Función auxiliar asíncrona para obtener coordenadas geográficas ({lat, lng}) para una locationInput dada.
+// 'locationInput' puede ser una cadena de dirección o un objeto {lat, lng} ya formado.
+// Implementa caché para cadenas de dirección para reducir llamadas API.
 async function getCoords(locationInput) {
-  if (typeof locationInput === 'string') { // If the input is an address string.
-    if (geoCache.has(locationInput)) return geoCache.get(locationInput); // Check cache first.
-    // If not in cache, perform geocoding using Google Maps Geocoder.
-    return new Promise(resolve => { // Return a Promise as geocoding is asynchronous.
+  if (typeof locationInput === 'string') { // Si la entrada es una cadena de dirección.
+    if (geoCache.has(locationInput)) return geoCache.get(locationInput); // Comprobar caché primero.
+    // Si no está en caché, realizar geocodificación usando Google Maps Geocoder.
+    return new Promise(resolve => { // Devolver una Promesa ya que la geocodificación es asíncrona.
       geocoder.geocode({ address: locationInput }, (results, status) => {
         let loc = null;
-        if (status === 'OK' && results && results[0]) { // If geocoding is successful.
-          loc = { // Extract latitude and longitude.
+        if (status === 'OK' && results && results[0]) { // Si la geocodificación es exitosa.
+          loc = { // Extraer latitud y longitud.
             lat: results[0].geometry.location.lat(), 
             lng: results[0].geometry.location.lng() 
           };
         } else {
-          console.warn(`Geocoding failed for address "${locationInput}": ${status}`);
+          // Advertir en consola si la geocodificación falla.
+          console.warn(`La geocodificación falló para la dirección "${locationInput}": ${status}`);
         }
-        geoCache.set(locationInput, loc); // Store the result (or null if failed) in the cache.
-        resolve(loc); // Resolve the Promise with the location object or null.
+        geoCache.set(locationInput, loc); // Almacenar el resultado (o null si falló) en la caché.
+        resolve(loc); // Resolver la Promesa con el objeto de ubicación o null.
       });
     });
   } else if (locationInput && typeof locationInput.lat === 'number' && typeof locationInput.lng === 'number') {
-    // If the input is already a {lat, lng} object, return it directly.
+    // Si la entrada ya es un objeto {lat, lng}, devolverlo directamente.
     return locationInput; 
   }
-  // If the input is neither a string nor a valid {lat, lng} object.
-  console.warn("Invalid location input for getCoords:", locationInput);
+  // Si la entrada no es ni una cadena ni un objeto {lat, lng} válido.
+  console.warn("Entrada de ubicación inválida para getCoords:", locationInput);
   return null; 
 }
 
-// 'gc' can be used as a shorter alias for 'getCoords' if preferred.
+// 'gc' puede usarse como un alias más corto para 'getCoords' si se prefiere.
 const gc = addr => getCoords(addr); 
 
-// Asynchronously calculates the driving time in minutes between an origin and a destination.
-// 'originInput' and 'destinationInput' can be address strings or {lat, lng} objects.
+// Calcula de forma asíncrona el tiempo de conducción en minutos entre un origen y un destino.
+// 'originInput' y 'destinationInput' pueden ser cadenas de dirección u objetos {lat, lng}.
 async function driveMinutes(originInput, destinationInput) {
-  // Get the coordinate objects for the origin and destination.
+  // Obtener los objetos de coordenadas para el origen y el destino.
   const oCoords = await getCoords(originInput);
   const dCoords = await getCoords(destinationInput);
   
-  // If either origin or destination coordinates could not be determined, return null (cannot calculate ETA).
+  // Si no se pudieron determinar las coordenadas para el origen o el destino, devolver null (no se puede calcular ETA).
   if (!oCoords || !dCoords) return null;
 
-  // Return a Promise as the Distance Matrix service call is asynchronous.
+  // Devolver una Promesa ya que la llamada al servicio Distance Matrix es asíncrona.
   return new Promise(resolve => {
     distSvc.getDistanceMatrix({
-      origins: [new google.maps.LatLng(oCoords.lat, oCoords.lng)], // Origin, as LatLng object.
-      destinations: [new google.maps.LatLng(dCoords.lat, dCoords.lng)], // Destination, as LatLng object.
-      travelMode: 'DRIVING', // Specify driving mode.
+      origins: [new google.maps.LatLng(oCoords.lat, oCoords.lng)], // Origen, como objeto LatLng.
+      destinations: [new google.maps.LatLng(dCoords.lat, dCoords.lng)], // Destino, como objeto LatLng.
+      travelMode: 'DRIVING', // Especificar modo de conducción.
       drivingOptions: { 
-        departureTime: new Date() // Use current time for departure to get traffic-dependent ETAs.
+        departureTime: new Date() // Usar hora actual para la salida para obtener ETAs dependientes del tráfico.
       } 
-    }, (matrixResult, status) => { // Callback function for the Distance Matrix service.
-      const element = matrixResult?.rows[0].elements[0]; // Get the specific result element.
-      // Check if the overall status and the element status are 'OK'.
+    }, (matrixResult, status) => { // Función callback para el servicio Distance Matrix.
+      const element = matrixResult?.rows[0].elements[0]; // Obtener el elemento de resultado específico.
+      // Comprobar si el estado general y el estado del elemento son 'OK'.
       if (status === 'OK' && element?.status === 'OK') {
-        // Extract duration. Prioritize 'duration_in_traffic' if available, else use 'duration'.
-        // The value is in seconds, so convert to minutes and round it.
+        // Extraer duración. Priorizar 'duration_in_traffic' si está disponible, de lo contrario usar 'duration'.
+        // El valor está en segundos, así que convertir a minutos y redondear.
         const durationInMinutes = Math.round((element.duration_in_traffic || element.duration).value / 60);
         resolve(durationInMinutes);
       } else {
-        console.warn(`DistanceMatrix failed between ${JSON.stringify(oCoords)} and ${JSON.stringify(dCoords)}: ${status}, element status: ${element?.status}`);
-        resolve(null); // Return null if ETA calculation failed for any reason.
+        // Advertir en consola si falla el cálculo de la matriz de distancia.
+        console.warn(`DistanceMatrix falló entre ${JSON.stringify(oCoords)} y ${JSON.stringify(dCoords)}: ${status}, estado del elemento: ${element?.status}`);
+        resolve(null); // Devolver null si el cálculo de ETA falló por cualquier motivo.
       }
     });
   });
 }
 
-/* ---------- LÓGICA DE BÚSQUEDA DEL USUARIO (USER SEARCH LOGIC) ---------- */
-// This asynchronous function is triggered when the user initiates a search for cells near their home address.
+/* ---------- LÓGICA DE BÚSQUEDA DEL USUARIO ---------- */
+// Esta función asíncrona se activa cuando el usuario inicia una búsqueda de células cercanas a su dirección de casa.
 async function runSearch() {
-  const rawHomeAddress = document.getElementById('homeInput').value.trim(); // Get trimmed address from input.
-  const outNearestDiv = document.getElementById('nearest'); // DOM element for "nearest cell" message.
-  const searchButton = document.getElementById('searchBtn'); // The search button.
+  const rawHomeAddress = document.getElementById('homeInput').value.trim(); // Obtener dirección recortada de la entrada.
+  const outNearestDiv = document.getElementById('nearest'); // Elemento DOM para el mensaje de "célula más cercana".
+  const searchButton = document.getElementById('searchBtn'); // El botón de búsqueda.
   
-  // --- Input Validation and Geocoding ---
-  if (!rawHomeAddress) { // If the address input is empty.
+  // --- Validación de Entrada y Geocodificación ---
+  if (!rawHomeAddress) { // Si la entrada de dirección está vacía.
     outNearestDiv.textContent = 'Por favor, ingrese una dirección de casa.';
-    return; // Exit function.
+    return; // Salir de la función.
   }
-  // If 'homePos' (global coordinates) is not set BUT a raw address string is present
-  // (e.g., user typed and hit Enter without selecting an Autocomplete suggestion),
-  // attempt to geocode the raw address string now.
+  // Si 'homePos' (coordenadas globales) no está establecido PERO hay una cadena de dirección cruda presente
+  // (ej., usuario escribió y presionó Enter sin seleccionar una sugerencia de Autocompletar),
+  // intentar geocodificar la cadena de dirección cruda ahora.
   if (!homePos && rawHomeAddress) { 
-      const loc = await getCoords(rawHomeAddress); // Geocode the typed address.
-      if (!loc) { // If geocoding fails for the typed address.
+      const loc = await getCoords(rawHomeAddress); // Geocodificar la dirección escrita.
+      if (!loc) { // Si la geocodificación falla para la dirección escrita.
           outNearestDiv.textContent = 'Error: No se pudo geocodificar la dirección de casa ingresada.';
-          return; // Exit function.
+          return; // Salir de la función.
       }
-      homePos = loc; // Update global 'homePos' with the geocoded coordinates.
+      homePos = loc; // Actualizar 'homePos' global con las coordenadas geocodificadas.
   }
-  // If, after all checks, 'homePos' is still not valid (null).
+  // Si, después de todas las comprobaciones, 'homePos' sigue sin ser válido (null).
   if (!homePos) { 
     outNearestDiv.textContent = 'Error: Dirección de casa no válida o no seleccionada.';
-    return; // Exit function.
+    return; // Salir de la función.
   }
 
-  // --- UI Updates for Search Start ---
-  searchButton.disabled = true; // Disable the search button during processing.
-  outNearestDiv.textContent = 'Buscando células cercanas…'; // Update message to indicate searching.
+  // --- Actualizaciones de UI para Inicio de Búsqueda ---
+  searchButton.disabled = true; // Deshabilitar el botón de búsqueda durante el procesamiento.
+  outNearestDiv.textContent = 'Buscando células cercanas…'; // Actualizar mensaje para indicar búsqueda.
 
   try {
-    // --- Calculate ETAs from Home ---
-    // Create an array of Promises, one for each cell, to calculate ETA from user's home.
+    // --- Calcular ETAs desde Casa ---
+    // Crear un array de Promesas, una para cada célula, para calcular el ETA desde la casa del usuario.
     const promises = rows.map(async (cell) => { 
-      // Use the cell's 'EFFECTIVE_ROUTING_ADDRESS' for the destination.
-      // For "La Cosecha" zone cells, this will be HUB_ADDR (the church address).
-      // For other cells, it's their own address from the Excel sheet.
+      // Usar la 'EFFECTIVE_ROUTING_ADDRESS' de la célula para el destino.
+      // Para células de la zona "La Cosecha", esto será HUB_ADDR (la dirección de la iglesia).
+      // Para otras células, es su propia dirección de la hoja de Excel.
       const eta = await driveMinutes(homePos, cell['EFFECTIVE_ROUTING_ADDRESS']);
-      cell.ETA_FROM_HOME = eta; // Update the 'ETA_FROM_HOME' property on the cell object in the 'rows' array.
-      return cell; // Not strictly needed to return cell here, as 'rows' is modified directly.
+      // Actualizar la propiedad 'ETA_FROM_HOME' en el objeto de la célula en el array 'rows'.
+      cell.ETA_FROM_HOME = eta; 
+      return cell; // No es estrictamente necesario devolver cell aquí, ya que 'rows' se modifica directamente.
     });
-    await Promise.all(promises); // Wait for all asynchronous ETA calculations to complete.
+    await Promise.all(promises); // Esperar a que todos los cálculos asíncronos de ETA se completen.
 
-    // --- Update Column Header ---
-    // Now that ETAs from home have been processed (or attempted),
-    // update the "DIRECCION" column header to reflect that ETAs are from the user's home.
+    // --- Actualizar Encabezado de Columna ---
+    // Ahora que los ETAs desde casa han sido procesados (o intentados),
+    // actualizar el encabezado de la columna "DIRECCION" para reflejar que los ETAs son desde la casa del usuario.
     const direccionOriginalHeaderKey = 'DIRECCION';
     const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey);
     if (direccionColumnIndex !== -1 && table) {
       const column = table.column(direccionColumnIndex);
-      $(column.header()).html('conduce desde tu casa'); // Set new header text.
+      $(column.header()).html('CONDUCIR DESDE TU CASA'); // Establecer nuevo texto del encabezado.
     }
 
-    // --- Find and Display Nearest Cells ---
-    // Create a new array of cell data (shallow copies) for sorting, so 'rows' array isn't reordered.
+    // --- Encontrar y Mostrar Células Más Cercanas ---
+    // Crear un nuevo array de datos de células (copias superficiales) para ordenar, para que el array 'rows' no se reordene.
     let cellsWithEta = rows.map(cell => ({...cell})); 
-    // Sort this array by 'ETA_FROM_HOME' in ascending order.
-    // Cells where 'ETA_FROM_HOME' is null (calculation failed) are pushed to the end.
+    // Ordenar este array por 'ETA_FROM_HOME' en orden ascendente.
+    // Las células donde 'ETA_FROM_HOME' es null (cálculo fallido) se empujan al final.
     cellsWithEta.sort((a, b) => {
-      if (a.ETA_FROM_HOME === null && b.ETA_FROM_HOME === null) return 0; // Both null, equal.
-      if (a.ETA_FROM_HOME === null) return 1;  // 'a' (null) is greater (comes after) 'b' (not null).
-      if (b.ETA_FROM_HOME === null) return -1; // 'b' (null) is greater (comes after) 'a' (not null).
-      return a.ETA_FROM_HOME - b.ETA_FROM_HOME; // Standard numeric comparison.
+      if (a.ETA_FROM_HOME === null && b.ETA_FROM_HOME === null) return 0; // Ambos null, iguales.
+      if (a.ETA_FROM_HOME === null) return 1;  // 'a' (null) es mayor (viene después) que 'b' (no null).
+      if (b.ETA_FROM_HOME === null) return -1; // 'b' (null) es mayor (viene después) que 'a' (no null).
+      return a.ETA_FROM_HOME - b.ETA_FROM_HOME; // Comparación numérica estándar.
     });
 
-    // Get the top 3 cells from the sorted list that have a valid (non-null) ETA from home.
+    // Obtener las 3 primeras células de la lista ordenada que tienen un ETA desde casa válido (no null).
     const nearestThree = cellsWithEta.filter(c => c.ETA_FROM_HOME !== null).slice(0, 3);
 
-    // --- Display Results ---
-    if (nearestThree.length > 0) { // If at least one nearby cell was found.
-      const nearestCell = nearestThree[0]; // The very nearest cell.
-      // Update the 'outNearestDiv' with information about the nearest cell.
-      // Assumes 'MAESTRO' and 'TELEFONO' are the correct keys for teacher and phone from your data.
+    // --- Mostrar Resultados ---
+    if (nearestThree.length > 0) { // Si se encontró al menos una célula cercana.
+      const nearestCell = nearestThree[0]; // La célula más cercana en absoluto.
+      // Actualizar 'outNearestDiv' con información sobre la célula más cercana.
+      // Asume que 'MAESTRO' y 'TELEFONO' son las claves correctas para maestro y teléfono de tus datos.
       outNearestDiv.textContent = `La célula más cercana (#${nearestCell['#']}) está a ≈ ${nearestCell.ETA_FROM_HOME} min. ` +
                         `Maestro/a: ${nearestCell['MAESTRO']}, ` +
                         `Tel: ${nearestCell['TELEFONO']}.`;
       
-      // Prepare these 3 nearest cells for display in the DataTable and cards.
-      // Their 'DIRECCION' field needs to be explicitly set to show the ETA from home.
+      // Preparar estas 3 células más cercanas para mostrar en la DataTable y las tarjetas.
+      // Su campo 'DIRECCION' necesita ser establecido explícitamente para mostrar el ETA desde casa.
       const displayDataNearestThree = nearestThree.map(cell => {
-        const displayCell = {...cell}; // Create a copy for display.
-        // Set the 'DIRECCION' property to the formatted ETA from home string.
+        const displayCell = {...cell}; // Crear una copia para visualización.
+        // Establecer la propiedad 'DIRECCION' a la cadena de ETA desde casa formateada.
         displayCell['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`; 
         return displayCell;
       });
 
-      // Update the DataTable: clear existing rows, add the 3 nearest, and redraw.
+      // Actualizar la DataTable: limpiar filas existentes, añadir las 3 más cercanas y redibujar.
       table.clear().rows.add(displayDataNearestThree).draw();
-      // Update the cards view with the 3 nearest cells.
+      // Actualizar la vista de tarjetas con las 3 células más cercanas.
       renderCards(displayDataNearestThree);
-    } else { // If no nearby cells were found with valid ETAs.
+    } else { // Si no se encontraron células cercanas con ETAs válidos.
       outNearestDiv.textContent = 'No se encontraron células cercanas o no se pudo calcular el tiempo de viaje.';
     }
 
-  } catch(e) { // Catch any errors that occur during the search and ETA calculation process.
+  } catch(e) { // Capturar cualquier error que ocurra durante el proceso de búsqueda y cálculo de ETA.
     outNearestDiv.textContent = 'Error durante la búsqueda: ' + e.message;
-    console.error("Error in runSearch:", e); // Log detailed error to the console.
-  } finally { // This block executes regardless of whether an error occurred or not.
-    searchButton.disabled = false; // Always re-enable the search button.
+    console.error("Error in runSearch:", e); // Registrar error detallado en la consola.
+  } finally { // Este bloque se ejecuta independientemente de si ocurrió un error o no.
+    searchButton.disabled = false; // Siempre volver a habilitar el botón de búsqueda.
   }
 }
 </script>
