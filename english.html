@@ -1,49 +1,91 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"> <head>
 <meta charset="utf-8"/>
-<title>Growth Cells | Zone</title>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Growth Cells | Zone</title> <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="stylesheet"
       href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"/>
 <style>
-/* —— same layout & colours —— */
+/* -------- CSS Styles -------- */
+/* Body styles: Sets default font for the entire page,
+   removes default browser margin, and sets a light background color. */
 body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
+
+/* Header banner styles: Ensures the banner image is responsive,
+   occupies full width (display:block, width:100%),
+   maintains aspect ratio (auto height), does not exceed a maximum height (25% of viewport height),
+   and scales to fit within its bounds without cropping (object-fit:contain). */
 header .banner{display:block;width:100%;height:auto;max-height:25vh;object-fit:contain;margin:0}
+
+/* Controls container styles: This div ('controls') holds the zone filter and address search input.
+   Flexbox is used for layout: 'display:flex' enables flexbox,
+   'flex-wrap:wrap' allows items to wrap to the next line if they don't fit,
+   'gap' provides spacing between items, and 'align-items:center' vertically aligns them. */
 .controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
+/* Styles for the zone select dropdown ('#zonaSelect') and the text input for address ('#homeInput'):
+   Defines padding, font size, border, and border-radius for a uniform look. */
 #zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
+/* Specific styles for the home address input ('#homeInput'):
+   'min-width' ensures it doesn't get too small, and flex properties ('flex:1 1 260px')
+   allow it to grow and shrink flexibly within the 'controls' container, with a base width of 260px. */
 #homeInput{min-width:260px;flex:1 1 260px}
+/* Color of the placeholder text (e.g., "Home address") for the address input field. */
 #homeInput::placeholder{color:#999}
+/* Search button ('#searchBtn') styles: Defines its visual appearance and cursor behavior. */
 #searchBtn{padding:.35rem .9rem;font-size:1rem;border:1px solid #2d57a3;background:#2d57a3;color:#fff;border-radius:4px;cursor:pointer}
+/* Styles for the search button when it's disabled:
+   'opacity:.5' makes it semi-transparent, and 'cursor:not-allowed' indicates it's unclickable. */
 #searchBtn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Table wrapper ('table-wrapper') styles:
+   Fixed height (65% of viewport height), enables a vertical scrollbar if content overflows ('overflow:auto'),
+   and adds horizontal padding. */
 .table-wrapper{height:65vh;overflow:auto;padding:0 2rem 1.5rem}
+/* Base styles for the DataTable: Solid border, 'border-collapse:collapse' makes cell borders merge,
+   'width:100%' makes it occupy the full width of its container, and 'table-layout:fixed'
+   provides a more predictable rendering of column widths. */
 table.dataTable{border:2px solid #13284b;border-collapse:collapse;width:100%;table-layout:fixed}
+/* Styles for header cells (<thead><th>) of the DataTable: Background color, text color, border, font weight, and text alignment. */
 table.dataTable thead th{background:#2d57a3;color:#fff;border:1px solid #13284b;font-weight:700;text-align:center}
+/* Styles for data cells (<td>) of the DataTable: Border, padding, and 'word-wrap:break-word'
+   allows long text to wrap to the next line within the cell. */
 table.dataTable td{border:1px solid #ccc;padding:6px 4px;word-wrap:break-word}
+/* Style for the first cell (<td>) in each body row (<tbody>) of the DataTable (typically the '#' column):
+   A different background color, bold text, and centered alignment to make it stand out. */
 table.dataTable tbody td:nth-child(1){background:#eee;font-weight:700;text-align:center}
+/* "Zebra striping" style for even-numbered rows (even) in the DataTable body:
+   A slightly different background color to improve readability of rows. */
 table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
+
+/* Card container ('cards') styles, used for the mobile view:
+   'display:none' hides it by default. It will be shown via media queries for smaller screens.
+   It has padding, allows scrolling if content is too tall, and a fixed height. */
 .cards{display:none;padding:0 1rem 2rem;overflow:auto;height:65vh}
+/* Styles for each individual card ('card'): Defines its border, rounded corners, margin, padding, background color, and a light shadow. */
 .card{border:1px solid #ccc;border-radius:6px;margin-bottom:1rem;padding:1rem;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+/* Styles for paragraphs (<p>) within each card: Small vertical margin and font size. */
 .card p{margin:.25rem 0;font-size:.95rem}
-@media(max-width:900px){.table-wrapper{display:none}.cards{display:block}.controls{margin:1rem}}
+
+/* Media query for screens with a maximum width of 900px (typically tablets and mobile phones):
+   This section defines layout changes for smaller screens. */
+@media(max-width:900px){
+  .table-wrapper{display:none} /* Hide the table wrapper on small screens. */
+  .cards{display:block}       /* Display the cards container instead. */
+  .controls{margin:1rem}      /* Adjust the margin of the controls area for small screens. */
+}
+
+/* Styles for the div ('#nearest') that will display messages about the nearest cell found. */
 #nearest{margin:.5rem 2rem 0;font-weight:600}
+/* Styles for the div ('#error') that will display general error messages (e.g., if loading the Excel file fails). */
 #error{color:#c00;margin:1rem 2rem 0;font-weight:700}
 </style>
 </head>
 <body>
 <header>
-  <img src="./header.svg" class="banner"
-       alt="La Cosecha Community Church — Growth Cells">
+  <img src="./english_header.svg" class="banner" alt="The Harvest – Cells">
 </header>
 
 <div class="controls">
-  <label for="zonaSelect"><strong>Zone:</strong></label>
-  <select id="zonaSelect"><option value="">— All —</option></select>
-
-  <label for="homeInput">Find nearest address:</label>
-  <input id="homeInput" type="text" placeholder="Home Address"/>
-  <button id="searchBtn">Search</button>
-</div>
+  <label for="zonaSelect"><strong>Zone:</strong></label> <select id="zonaSelect"><option value="">— All —</option></select> <label for="homeInput" class="addr-label">Find nearest cell group:</label> <input id="homeInput" type="text" placeholder="Home address"/> <button id="searchBtn">Search</button> </div>
 
 <div id="nearest"></div>
 
@@ -51,200 +93,976 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 <div id="cards"  class="cards"></div>
 <div id="error"  hidden></div>
 
-<!-- libraries -->
-<script src="./xlsx.full.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script async defer
+<script src="./xlsx.full.min.js"></script> <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script> <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script> <script async defer
   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=gmapsReady">
 </script>
 
 <script>
-/* —— constants —— */
-const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
-const hdrEN = { '#':'#','ZONA':'ZONE','MAESTRO':'LEADER','ASISTENTE':'ASSISTANT',
-                'DIRECCION':'ETA',        /* renamed header only */
-                'DIA':'DAY','HORA':'TIME',
-                'IDIOMA':'LANGUAGE','TELEFONO':'PHONE' };
+/* ==========================================================================
+   JavaScript Logic for Cell Finder Application (English Version)
+   ========================================================================== */
 
-/* —— state —— */
-let headEN = [], rows = [], table, cardsDiv,
-    geocoder, distSvc, homePos = null;
+/* ---------- GLOBAL CONSTANTS ---------- */
+// HUB_ADDR: Defines the fixed physical street address of the church ("The Harvest").
+// This constant is used as:
+// 1. The default origin point for calculating the initial Estimated Time of Arrival (ETA) to all listed cell groups.
+// 2. The specific destination address for cell groups that are designated as being in the "La Cosecha" zone (assuming these take place at the church premises).
+// 3. Conceptually, it represents the church affiliation for "Zoom" cells, though their 'EFFECTIVE_ROUTING_ADDRESS' is null for ETA calculations.
+const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
+
+/* ---------- GLOBAL APPLICATION STATE VARIABLES ---------- */
+// headES: An array that will store the names of the column headers.
+// These names are extracted directly from the first row of the processed Excel sheet.
+// This array is vital for several operations:
+//   a) Mapping data from each row of the Excel sheet to corresponding properties of JavaScript objects (each object representing a cell group).
+//   b) Programmatically configuring the columns and their titles when initializing the DataTables instance.
+//   c) Generating appropriate labels for data points when displaying cell information in the "cards" view (mobile layout).
+// Example content after processing Excel: ['#', 'ZONE', 'LEADER', 'ADDRESS', 'DAY', 'TIME', 'LANGUAGE', ...] // Note: 'LANGUAGE' is 'IDIOMA' in Excel
+let headES = [];
+
+// rows: This is the primary array that will hold all the data for the cell groups after it has been read from the Excel file and processed.
+// Each element in this array is a JavaScript object, where each object represents one cell group.
+// The properties of these objects correspond to the column headers defined in the 'headES' array.
+// During the application's execution, additional calculated properties are added to these objects:
+//   - 'DIRECCION_FROM_EXCEL': Stores the original, unmodified address string for the cell group, exactly as it appears in the 'DIRECCION' (Address) column of the Excel sheet. This preserves the literal input.
+//   - 'EFFECTIVE_ROUTING_ADDRESS': Stores the actual address string that will be used for any ETA (Estimated Time of Arrival) calculations for this cell group.
+//     For cell groups in the "La Cosecha" zone, this value will be the HUB_ADDR (the church's address).
+//     For cell groups in the "Zoom" zone, this value will be 'null' because they are online and don't have a physical address for routing.
+//     For all other cell groups, this will typically be their 'DIRECCION_FROM_EXCEL'.
+//     This property is crucial for ensuring that route calculations are made to the correct geographical point for each cell group.
+//   - 'ETA_FROM_HUB': A numeric value representing the estimated travel time (in minutes) from the church (HUB_ADDR) to the cell group's 'EFFECTIVE_ROUTING_ADDRESS'.
+//     This value can be 'null' if the ETA calculation was not possible (e.g., for Zoom cells, or if an address was unroutable). This indicates the cell's proximity to the main church.
+//   - 'ETA_FROM_HOME': A numeric value representing the estimated travel time (in minutes) from the home address entered by the user to the cell group's 'EFFECTIVE_ROUTING_ADDRESS'.
+//     This property is initialized to 'null' and is only calculated and populated when the user performs a home address search. This indicates the cell's proximity to the user.
+//   - 'IDIOMA': While originally from Excel, this field is updated for display for "Bilingue" to "Bi-Lingual".
+let rows = [];
+
+// table: This variable will store the reference to the DataTables instance after the table has been initialized using the DataTables library.
+// Having this reference allows for programmatic interaction with the table through the DataTables API,
+// such as clearing existing data (table.clear()), adding new rows of data (table.rows.add()), and redrawing the table to reflect changes (table.draw()).
+let table;
+
+// cardsDiv: This variable holds a reference to the HTML <div> element that has the ID 'cards'. This div serves as the container
+// where information about the cell groups will be rendered in a "card" format.
+// This card-based view is primarily intended to provide a better user experience on mobile devices or smaller screens,
+// where a wide table with many columns might be difficult to read and navigate.
+let cardsDiv;
+
+// geocoder: This variable will store an instance of the Google Maps 'google.maps.Geocoder' service.
+// The purpose of this service is geocoding: converting human-readable textual addresses
+// (e.g., "123 Main St, Anytown, USA") into geographic coordinates (latitude and longitude).
+// It can also perform reverse geocoding (converting coordinates back into an address), though that's not used here.
+let geocoder;
+
+// distSvc: This variable will store an instance of the Google Maps 'google.maps.DistanceMatrixService'.
+// This service is used to calculate travel distances and, more importantly for this application,
+// estimated travel times (ETAs) between one or more origin points and one or more destination points.
+// It considers the specified travel mode (here, 'DRIVING').
+let distSvc;
+
+// homePos: This variable stores an object containing the geographic coordinates (in the format {lat: number, lng: number})
+// of the home address that the user has entered and has been successfully geocoded (usually via Autocomplete or direct search).
+// It is initialized to 'null'. When 'homePos' contains a valid coordinate object, it signifies that a home address search
+// has been performed by the user. This state is crucial as it triggers the calculation of ETAs from the user's home
+// and changes how cell group information (especially the 'DIRECCION' column, which shows ETAs) is displayed.
+let homePos = null;
+
+// geoCache: A JavaScript 'Map' object that functions as a simple in-memory cache for geocoding results.
+// When an address string is geocoded via 'getCoords', the address string itself is used as the 'key' in this Map,
+// and the resulting {lat, lng} coordinate object (or 'null' if the geocoding failed for that address) is stored as the 'value'.
+// Before attempting to geocode an address, the 'getCoords' function first checks this cache. If the address is found,
+// the cached result is used immediately, avoiding a redundant API call to the Google Geocoding service.
+// This helps in optimizing API usage (which can be subject to quotas and costs) and can improve the application's performance,
+// especially if the same addresses are frequently processed or looked up.
 const geoCache = new Map();
 
-/* —— safe geocoder —— */
-const gc = addr => {
-  if (!addr || typeof addr!=='string' || !addr.trim() ||
-      addr.trim()==='—' || addr.trim().toLowerCase()==='zoom')
-    return Promise.resolve(null);
-  if (geoCache.has(addr)) return geoCache.get(addr);
-  return new Promise(res => geocoder.geocode({address:addr}, (re,st) => {
-    const loc = st==='OK'
-      ? {lat:re[0].geometry.location.lat(), lng:re[0].geometry.location.lng()}
-      : null;
-    geoCache.set(addr, loc); res(loc);
-  }));
-};
-
-/* —— minute-distance with fallback —— */
-async function driveMin(from,to){
-  const o = await gc(from), d = await gc(to); if(!o||!d) return null;
-  return new Promise(res => distSvc.getDistanceMatrix({
-    origins:[new google.maps.LatLng(o.lat,o.lng)],
-    destinations:[new google.maps.LatLng(d.lat,d.lng)],
-    travelMode:'DRIVING',
-    drivingOptions:{departureTime:new Date()}
-  }, (m,st) => {
-    const el = m?.rows[0]?.elements[0];
-    if(st==='OK' && el?.status==='OK')
-      return res(Math.round((el.duration_in_traffic||el.duration).value/60));
-
-    /* fallback – straight-line @ 50 km/h */
-    const R=6371, rad=x=>x*Math.PI/180;
-    const dLat=rad(d.lat-o.lat), dLng=rad(d.lng-o.lng);
-    const a=Math.sin(dLat/2)**2 +
-             Math.cos(rad(o.lat))*Math.cos(rad(d.lat))*Math.sin(dLng/2)**2;
-    const km=2*R*Math.asin(Math.sqrt(a));
-    res(Math.round((km/50)*60));
-  }));
+/* ---------- HELPER FUNCTION TO FORMAT COLUMN TITLES ---------- */
+// This function takes a string 'str' (expected to be a column header or a label)
+// and returns a new string where the first letter is capitalized, and all subsequent letters in the string are converted to lowercase.
+// This is used to ensure a consistent "Title Case"-like formatting for headers in the UI (table headers and card labels).
+// - It safely handles inputs that are null, undefined, or not strings by returning an empty string, preventing errors.
+// - 'str.charAt(0).toUpperCase()': Retrieves the very first character of the input string 'str' and converts it to its uppercase equivalent.
+// - 'str.slice(1).toLowerCase()': Retrieves the rest of the string 'str' (i.e., from the second character to the end) and converts this entire substring to lowercase.
+// - The capitalized first letter and the lowercased rest of the string are then concatenated to form the result.
+// Example: if str is "ZONE", it returns "Zone".
+// Example: if str is "NAME OF TEACHER/HOST", it returns "Name of teacher/host".
+function formatHeaderTitle(str) {
+  if (!str || typeof str !== 'string') return ''; // Safety check: if input is invalid, return an empty string.
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase(); // Apply the capitalization and lowercasing formatting.
 }
 
-/* —— Google Maps ready —— */
-async function gmapsReady(){
-  geocoder = new google.maps.Geocoder();
-  distSvc  = new google.maps.DistanceMatrixService();
+/* ---------- GOOGLE MAPS INITIALIZATION ---------- */
+// This asynchronous function ('async') is designated as the 'callback' function in the Google Maps API script URL
+// (specified via the 'callback=gmapsReady' parameter).
+// The browser automatically executes this function once the Google Maps API script (including any specified libraries like 'Places')
+// has been fully loaded, parsed, and is ready for use.
+async function gmapsReady() {
+  // Initialize instances of the Google Maps services that will be used throughout the application.
+  geocoder = new google.maps.Geocoder(); // Create a Geocoder instance, used for converting addresses to geographic coordinates.
+  distSvc = new google.maps.DistanceMatrixService(); // Create a DistanceMatrixService instance, used for calculating travel distances and times.
+  
+  // Load and process the cell group data from the 'celulas.xlsx' file.
+  // 'await' is used because 'loadSheet' is an asynchronous function (it performs network requests for the file and asynchronous data processing).
+  // The execution of 'gmapsReady' will pause at this line until the Promise returned by 'loadSheet' is resolved (i.e., 'loadSheet' completes).
+  // 'loadSheet' is responsible for reading the Excel file, transforming the data into the 'rows' array,
+  // performing initial ETA calculations (from the hub/church to each cell), and subsequently calling 'buildUI' to set up the user interface.
   await loadSheet();
 
-  const ac = new google.maps.places.Autocomplete(
-    document.getElementById('homeInput'), {types:['geocode']});
-  ac.addListener('place_changed',()=>{
-    const p = ac.getPlace();
-    homePos = p.geometry ? {lat:p.geometry.location.lat(),
-                            lng:p.geometry.location.lng()} : null;
+  // Get the DOM element for the home address input field using its ID ('homeInput').
+  const autocompleteInput = document.getElementById('homeInput');
+  // Create an instance of the Google Places Autocomplete service and attach it to the 'homeInput' field.
+  // The 'types: ['geocode']' option configures the Autocomplete service to suggest primarily geocodable addresses
+  // (like street addresses), rather than general points of interest or business names. This helps ensure the user selects a valid address.
+  const ac = new google.maps.places.Autocomplete(autocompleteInput, { types: ['geocode'] });
+
+  // Register an event listener for the 'place_changed' event on the Autocomplete instance ('ac').
+  // This event is specifically triggered by the Autocomplete service when the user selects a place (address)
+  // from the list of suggestions that appears dynamically beneath the input field as they type, or when they press Enter on a highlighted suggestion.
+  ac.addListener('place_changed', () => {
+    const place = ac.getPlace(); // The 'getPlace()' method of the Autocomplete object returns a 'PlaceResult' object.
+                                 // This object contains detailed information about the place selected by the user,
+                                 // including its name, formatted address, and, most importantly for this application, its geometry (which includes location coordinates).
+
+    const wasHomePosSet = !!homePos; // Store the state of 'homePos' *before* this potential update.
+                                     // '!!homePos' is a concise way to coerce 'homePos' to a boolean:
+                                     // 'true' if 'homePos' was not null or undefined (i.e., it was previously set with coordinates),
+                                     // and 'false' if 'homePos' was null or undefined. This helps in detecting if a previously set home address is now being cleared by the user.
+
+    // Update the global 'homePos' variable with the coordinates of the newly selected place.
+    // Check if 'place.geometry' exists. The 'geometry' property of a 'PlaceResult' object contains location information, including 'location.lat()' and 'location.lng()'.
+    // If 'place.geometry' exists (meaning the selected place has valid geographic coordinates),
+    // create a new object '{lat, lng}' with these coordinates and assign it to 'homePos'.
+    // If 'place.geometry' does not exist (e.g., the user cleared the input field, or the selected item from Autocomplete has no specific geometry),
+    // set 'homePos' to 'null', indicating that no valid home address is currently set.
+    homePos = place.geometry ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : null;
+
+    // Logic to handle the scenario where a previously set home address is cleared or becomes invalid:
+    if (!homePos && wasHomePosSet) { // This condition is true if 'homePos' is now 'null' (because it was just cleared or the new selection is invalid)
+                                     // AND 'wasHomePosSet' is 'true' (which means 'homePos' previously had a valid value).
+      document.getElementById('nearest').textContent = ''; // Clear any message that was previously displayed in the '#nearest' div (e.g., "Nearest cell is...").
+      
+      // Revert the title of the 'DIRECCION' (Address/ETA) column header in the DataTable back to its initial, default state ("Drive from Church").
+      const direccionOriginalHeaderKey = 'DIRECCION'; // The original key (from Excel header) for the address/ETA column in the data objects.
+      const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey); // Find the index (0-based position) of this column.
+      if (direccionColumnIndex !== -1 && table) { // Proceed only if the 'DIRECCION' column exists and the DataTable ('table') has been initialized.
+        const column = table.column(direccionColumnIndex); // Get the DataTables API object for this specific column using its index.
+                                                          // This allows manipulation of the column, such as accessing its header.
+        // Use jQuery to select the column's header element (the <th> tag) and update its HTML content.
+        // 'formatHeaderTitle' is called to ensure the reverted title ("Drive from Church") is capitalized correctly according to the application's style.
+        $(column.header()).html(formatHeaderTitle('Drive from Church'));
+      }
+      
+      // Refresh the entire display of cells in the table and cards.
+      // Since 'homePos' is now 'null', the 'filterAndDisplayCells' function (called next) will:
+      //  - Display ETAs from the church (or the special text for "La Cosecha" / "Zoom" zones) in the 'DIRECCION' column.
+      //  - Not apply sorting by ETA from home (the table will use its default sort order or user-applied sort).
+      filterAndDisplayCells(); 
+    }
+    // If 'homePos' is newly set to a valid address (or changed from one valid address to another),
+    // the actual search logic (which includes calculating new ETAs from home, updating the table to show nearest cells,
+    // and changing the 'DIRECCION' column header to "Drive from Home") is handled by the 'runSearch' function.
+    // 'runSearch' is typically triggered by the user explicitly clicking the "Search" button or pressing Enter in the input field.
   });
+
+  // Add a 'click' event listener to the HTML button element with the ID 'searchBtn'.
+  // When the user clicks this button, the 'runSearch' function will be executed.
   document.getElementById('searchBtn').addEventListener('click', runSearch);
+
+  // Add a 'keypress' event listener to the home address input field ('autocompleteInput', which is #homeInput).
+  // This enables the user to initiate a search by pressing the 'Enter' key while the input field has keyboard focus.
+  autocompleteInput.addEventListener('keypress', function(event) {
+    // The 'event' object, automatically passed to this callback function, contains details about the key press event, including which key was pressed.
+    if (event.key === 'Enter') { // Check if the 'key' property of the 'event' object is the string "Enter". This is the modern way to check for the Enter key.
+      event.preventDefault(); // Prevent the default action that the browser might take when Enter is pressed in an input field.
+                              // This is important, for example, to stop an implicit form submission if the input were part of a <form> element.
+                              // Here, we want to exclusively handle the Enter key press by calling our 'runSearch' function.
+      runSearch(); // Execute the main search function 'runSearch' to find nearby cells based on the current input.
+    }
+  });
 }
 
-/* —— load Excel —— */
-async function loadSheet(){
-  try{
-    const wb = XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),
-                         {type:'array'});
-    const sh = wb.Sheets['Consolidado'] ?? wb.Sheets[wb.SheetNames[0]];
-    const arr= XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+/* ---------- EXCEL DATA PROCESSING ---------- */
+// This asynchronous function ('async') is responsible for:
+// 1. Fetching the 'celulas.xlsx' file (it's assumed to be in the same directory as the HTML file, or the path needs to be adjusted).
+// 2. Reading and parsing its content using the SheetJS (XLSX) library.
+// 3. Transforming the raw data from the Excel sheet into a more usable array of JavaScript objects (this array will be stored in the global 'rows' variable).
+// 4. Filtering these cell group objects based on the language specified in the 'IDIOMA' (Language) column (for this English version, it keeps "English" or "Bilingue").
+// 5. For "Bilingue" cells, it updates the 'IDIOMA' property to "Bi-Lingual" for display purposes.
+// 6. For each valid cell group, it determines its 'EFFECTIVE_ROUTING_ADDRESS'. This is the actual address string or coordinates that will be used for any ETA calculations.
+//    - For cells in the "La Cosecha" zone, this is always HUB_ADDR (the church's address).
+//    - For cells in the "Zoom" zone, this is set to 'null' as they are online and not physically routable for ETA.
+//    - For all other cells, it's their own address as listed in the 'DIRECCION_FROM_EXCEL' property.
+// 7. It then calculates the 'ETA_FROM_HUB' (Estimated Time of Arrival from the church/hub) to this 'EFFECTIVE_ROUTING_ADDRESS'.
+// 8. It initializes the 'ETA_FROM_HOME' property for each cell group to 'null'. This will be calculated later if the user performs a home address search.
+// 9. Finally, once all this data loading and initial processing is complete, it calls the 'buildUI()' function to construct and display the main user interface.
+async function loadSheet() {
+  try { // The entire file loading and processing logic is wrapped in a try...catch block to handle potential errors gracefully (e.g., file not found, network errors, parsing errors).
+    // Step 1: Fetch the Excel file from the server (or local path if running locally).
+    // 'fetch' is a modern browser API for making network requests (e.g., HTTP GET). It returns a Promise.
+    // 'await' pauses the execution of 'loadSheet' until this Promise resolves (i.e., the server responds and the initial part of the file is received).
+    const response = await fetch('celulas.xlsx');
+    // Step 2: Read the entire body of the response as an ArrayBuffer.
+    // The '.arrayBuffer()' method of the 'Response' object also returns a Promise, which resolves with the file content in binary format (ArrayBuffer).
+    // This binary format is what the SheetJS library expects for parsing Excel files.
+    const arrayBuffer = await response.arrayBuffer();
+    // Step 3: Parse the ArrayBuffer (which contains the Excel file data) into a "workbook" object using the SheetJS library.
+    // 'XLSX.read()' is the primary function from SheetJS for reading workbook data.
+    // The option '{type: 'array'}' informs SheetJS that the input data ('arrayBuffer') is an ArrayBuffer.
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-    const headES = arr[0].map(h=>String(h).trim());
-    headEN = headES.map(h=>hdrEN[h]||h);          // English titles
+    // Step 4: Determine which specific sheet within the workbook to use for data.
+    // It first attempts to find a sheet with the exact name 'Consolidado'.
+    // If a sheet with that name exists ('workbook.Sheets['Consolidado']' is truthy), 'sheetName' becomes 'Consolidado'.
+    // Otherwise (if 'Consolidado' is not found), it defaults to using the name of the very first sheet in the workbook ('workbook.SheetNames[0]').
+    const sheetName = workbook.Sheets['Consolidado'] ? 'Consolidado' : workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName]; // Get the actual sheet object from the workbook using the determined 'sheetName'.
+    
+    // Step 5: Convert the data from the selected sheet into an array of arrays, where each inner array represents a row of cells.
+    // 'XLSX.utils.sheet_to_json()' is a utility function from SheetJS that can perform this conversion.
+    // The option 'header: 1' is crucial here: it tells the function *not* to assume the first row contains headers for object properties,
+    // but instead to include the first row of the Excel sheet as the first array element in the resulting 'sheetDataArray'.
+    // This allows us to manually extract these headers in the next step.
+    // The option 'defval: ''' specifies that any cells that are empty in the Excel sheet should be represented as empty strings ('')
+    // in the 'sheetDataArray', rather than 'undefined'. This can make subsequent data handling a bit simpler.
+    const sheetDataArray = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    
+    // Step 6: Extract the column headers from the first row of 'sheetDataArray' (which is sheetDataArray[0]).
+    // '.map(h => String(h).trim())' iterates over each header value in that first row:
+    //   - 'String(h)' ensures that the header is treated as a string (in case it was, for example, a number or date in the Excel cell).
+    //   - '.trim()' removes any leading or trailing whitespace characters from the header string.
+    // The resulting array of cleaned header strings is stored in the global variable 'headES'. This array defines the structure for the data objects.
+    headES = sheetDataArray[0].map(h => String(h).trim());
 
-    rows = arr.slice(1).filter(r=>r.some(x=>x!=='')).map(r=>{
-      const o={}; headES.forEach((h,i)=>o[hdrEN[h]||h]=r[i]); return o;
-    }).map(o=>{
-      let lang=String(o['LANGUAGE']).toLowerCase();
-      if(lang==='bilingüe'||lang==='bilingue'){o['LANGUAGE']='Bilingual';lang='bilingual';}
-      else if(lang==='ingles'||lang==='english'){o['LANGUAGE']='English';lang='english';}
-      o._lang=lang; return o;
-    }).filter(o=>o._lang==='english'||o._lang==='bilingual');
+    // Step 7: Process the actual data rows from the Excel sheet.
+    // '.slice(1)' creates a new array containing all elements of 'sheetDataArray' *except* the first one (which was the header row).
+    let processedRows = sheetDataArray.slice(1)
+             // Filter out rows that are completely empty (i.e., all cells in the row are empty strings).
+             // '.filter(rowArray => ...)' keeps only rows for which the callback function returns true.
+             // 'rowArray.some(cellValue => cellValue !== '')' checks if at least one cell in the 'rowArray' has a non-empty value.
+             // This prevents processing rows that might have been left blank in the Excel sheet.
+             .filter(rowArray => rowArray.some(cellValue => cellValue !== ''))
+             // Transform each 'rowArray' (an array of cell values for a single row) into a JavaScript object.
+             // '.map(rowArray => ...)' creates a new array where each element is the result of this transformation.
+             .map(rowArray => {
+               const rowObject = {}; // Create an empty object for the current row.
+               // Iterate over the 'headES' array (which contains the header names). For each 'header' and its corresponding 'index':
+               //   - Use the 'header' string as a property name (key) on 'rowObject'.
+               //   - Assign the value from 'rowArray' at the same 'index' as the value for that property.
+               // This effectively creates an object like: { Header1: value1, Header2: value2, ... } for each row of data from the Excel sheet.
+               headES.forEach((header, index) => rowObject[header] = rowArray[index]);
+               return rowObject; // Return the newly created object representing the cell group.
+             })
+             // Filter these newly created cell group objects based on the language specified in their 'IDIOMA' (Language) property.
+             // This is for the English version of the page, so it filters for cells that are "English" or "Bilingue".
+             .filter(o => { 
+               const lang = String(o['IDIOMA']).toLowerCase(); // Get the language value, ensure it's a string, and convert to lowercase for case-insensitive comparison.
+               return lang === 'english' || lang === 'bilingue'; // Keep the row (object 'o') if its language is 'english' or 'bilingue'.
+             });
 
-    /* ETA hub -> replace address text */
-    await Promise.all(rows.map(async r=>{
-      r.ADDRESS_RAW = r['ADDRESS'];
-      const m = await driveMin(r.ADDRESS_RAW, HUB_ADDR);
-      r['ADDRESS'] = m!=null ? `≈ ${m} min` : '—';
+    // After filtering by language (keeping only "English" or "Bilingue" rows),
+    // iterate through the 'processedRows' again to update the display value for "Bilingue".
+    // This modification happens *after* the filtering step so that the filter correctly identifies rows based on the original "bilingue" value from Excel.
+    processedRows.forEach(o => { // For each cell group object 'o' that passed the language filter.
+        if (String(o['IDIOMA']).toLowerCase() === 'bilingue') { // If its language was "bilingue".
+            o['IDIOMA'] = 'Bi-Lingual'; // Update the 'IDIOMA' property of the object 'o' to "Bi-Lingual".
+                                      // This is the value that will be displayed in the UI (table, cards) for these cells.
+        }
+    });
+
+    // Step 8: Further process each (now filtered and language-updated) row object asynchronously.
+    // This step is primarily to determine its 'EFFECTIVE_ROUTING_ADDRESS' and calculate its initial 'ETA_FROM_HUB'.
+    // 'Promise.all(...)' is used because 'driveMinutes' (called inside the map) is an asynchronous function.
+    // It waits for all the asynchronous operations within the map to complete before proceeding.
+    // The result of 'Promise.all' (which is an array of the processed cell objects) is assigned to the global 'rows' variable.
+    rows = await Promise.all(processedRows.map(async (o) => { // 'o' is a cell group object from 'processedRows'.
+      // Store the original address string from the 'DIRECCION' column of the Excel sheet
+      // into a new property 'DIRECCION_FROM_EXCEL'. This ensures the original Excel data for the address is preserved.
+      // At this point, 'o['DIRECCION']' holds the original string value that was read from the 'DIRECCION' column in Excel.
+      o['DIRECCION_FROM_EXCEL'] = o['DIRECCION']; 
+
+      let effectiveAddressForRouting; // This variable will hold the address string to be used for actual ETA calculations.
+      const zoneLowerCase = String(o['ZONA']).toLowerCase(); // Get the zone of the current cell, convert to lowercase for consistent, case-insensitive comparison.
+
+      // Determine the 'effectiveAddressForRouting' based on the cell's zone.
+      if (zoneLowerCase === 'la cosecha') { // Note: "La Cosecha" is Spanish, retained as per data; consider if this zone name also needs translation for internal logic if it varies.
+        // If the cell is in the "La Cosecha" zone, its effective location for routing is considered to be the church itself (HUB_ADDR).
+        effectiveAddressForRouting = HUB_ADDR;
+      } else if (zoneLowerCase === 'zoom') {
+        // If the cell is in the "Zoom" zone, it's considered an online meeting and therefore not physically routable for ETA calculations.
+        // Setting its 'effectiveAddressForRouting' to 'null' will cause 'driveMinutes' to return 'null' for its ETA.
+        effectiveAddressForRouting = null; 
+      } else {
+        // For all other zones, the effective routing address is its own address as listed in the Excel sheet
+        // (which we previously stored in 'DIRECCION_FROM_EXCEL').
+        effectiveAddressForRouting = o['DIRECCION_FROM_EXCEL'];
+      }
+      // Store this determined effective address on the cell object 'o'. This property will be used by 'driveMinutes'.
+      o['EFFECTIVE_ROUTING_ADDRESS'] = effectiveAddressForRouting;
+
+      // Calculate the initial ETA from the Church (HUB_ADDR) to this cell's 'effectiveAddressForRouting'.
+      // 'etaHub' will be 'null' if 'effectiveAddressForRouting' is 'null' (e.g., for Zoom cells)
+      // or if 'driveMinutes' fails to calculate an ETA for other reasons (e.g., unroutable address).
+      // For "La Cosecha" cells, 'effectiveAddressForRouting' is HUB_ADDR, so 'etaHub' should result in a value like 0 minutes.
+      const etaHub = effectiveAddressForRouting ? await driveMinutes(HUB_ADDR, o['EFFECTIVE_ROUTING_ADDRESS']) : null;
+      o['ETA_FROM_HUB'] = etaHub; // Store the calculated numeric ETA (in minutes) or null.
+
+      // Initialize the 'ETA_FROM_HOME' property for this cell to 'null'.
+      // This property will store the ETA from the user's home address to this cell.
+      // It will be calculated and populated later by the 'runSearch' function if and when the user provides their home address.
+      o['ETA_FROM_HOME'] = null; 
+      return o; // Return the processed cell object 'o' (now enriched with 'DIRECCION_FROM_EXCEL', 'EFFECTIVE_ROUTING_ADDRESS', 'ETA_FROM_HUB', and 'ETA_FROM_HOME').
     }));
 
+    // After all data has been loaded from Excel, transformed into objects, filtered by language,
+    // language display values updated, and processed with effective addresses and initial ETAs from the hub,
+    // call the 'buildUI()' function to construct and display the main user interface components (like the table and filters).
     buildUI();
-  }catch(e){ $('#error').show().text(e); }
+  } catch(e) { // If any error occurs during the entire 'loadSheet' process (e.g., file 'celulas.xlsx' not found, Excel parsing error, network issue during fetch).
+    // Display a user-friendly error message in English in the HTML element with ID '#error'.
+    $('#error').show().text("Error loading cell data: " + e.message);
+    // Also, log the detailed error object (which might include a stack trace) to the browser's console.
+    // This is very helpful for developers to diagnose and fix issues.
+    console.error("Error in loadSheet:", e);
+  }
 }
 
-/* —— UI —— */
-function buildUI(){
-  [...new Set(rows.map(r=>r['ZONE']).filter(Boolean))].sort()
-    .forEach(z=>$('#zonaSelect').append(`<option value="${z}">${z}</option>`));
+/* ---------- CONSTRUCCIÓN DE LA INTERFAZ DE USUARIO (UI CONSTRUCTION) ---------- */
+// This function is called once 'loadSheet' has successfully completed its task of loading and processing the initial cell data.
+// Its primary responsibilities are:
+// 1. To populate the 'Zone' filter dropdown menu ('#zonaSelect') with all unique zone names found in the cell data.
+// 2. To initialize the DataTables library on the main HTML table ('#tabla'), configuring its columns,
+//    setting the initial sort order, default page length, and other relevant DataTables options.
+// 3. To get a reference to the 'cardsDiv' DOM element, which will be used for rendering the mobile-friendly card view.
+// 4. To make the initial call to 'filterAndDisplayCells()'. This function will take the fully processed 'rows' data
+//    and display it in both the DataTable and the cards view, applying default filtering (usually "All" zones) and sorting.
+// 5. To set up an event listener for the 'Zone' filter dropdown. When the user changes the selected zone,
+//    this listener will trigger 'filterAndDisplayCells()' to update the displayed data accordingly.
+function buildUI() {
+  // Populate the 'Zone' filter dropdown ('#zonaSelect') with unique, sorted zone names from the 'rows' data.
+  // Step 1: 'rows.map(r => r['ZONA'])' creates a new array containing only the 'ZONA' property values from all cell objects in 'rows'.
+  // Step 2: '.filter(Boolean)' removes any 'falsy' values from this array (e.g., null, undefined, empty strings), ensuring only valid zone names are considered.
+  // Step 3: 'new Set(...)' creates a Set from the array of zone names. A Set automatically stores only unique values, effectively removing any duplicate zone names.
+  // Step 4: '[...set]' (spread operator) converts the Set back into an array of unique zone names.
+  // Step 5: '.sort()' sorts this array of unique zone names alphabetically.
+  // Step 6: '.forEach(zone => ...)' iterates over each unique, sorted 'zone' name.
+  //         For each 'zone', it creates a new HTML '<option>' element and appends it to the '#zonaSelect' dropdown using jQuery's '.append()'.
+  //         The 'value' attribute of the option is set to the zone name, and the visible text of the option is also the zone name.
+  [...new Set(rows.map(r => r['ZONA']).filter(Boolean))].sort()
+    .forEach(zone => $('#zonaSelect').append(`<option value="${zone}">${zone}</option>`));
 
-  const numIdx=headEN.indexOf('#'), zoneIdx=headEN.indexOf('ZONE');
+  // Get the zero-based indices of the '#' column and 'ZONA' column from the 'headES' array (which holds the original Excel header names).
+  // These indices are used to specify the default sorting order for the DataTable when it's first initialized.
+  // 'indexOf' returns -1 if the specified header name is not found in 'headES'.
+  const numIdx = headES.indexOf('#'); 
+  const zonaIdx = headES.indexOf('ZONA'); 
+  // Define the string key that represents the 'DIRECCION' (Address/ETA) column in the data objects (from Excel headers).
+  // This key is used to identify this column specifically when setting up its initial display title in the DataTable.
+  const direccionOriginalHeaderKey = 'DIRECCION'; 
+
+  // Initialize the DataTables library on the HTML table element that has the ID 'tabla'.
+  // '$('#tabla').DataTable({...})' is the standard jQuery way to apply DataTables functionality to an existing <table>.
+  // An object containing various configuration options for DataTables is passed to the constructor.
   table = $('#tabla').DataTable({
-    data: rows,
-    columns: headEN.map(h => ({title:h,data:h==='ETA'?'ADDRESS':h})),
-    order:  [[numIdx,'asc'],[zoneIdx,'asc']],
-    pageLength: 10
+    // 'columns': This option defines the configuration for each column that will appear in the DataTable.
+    // It's an array of objects, where each object corresponds to one column.
+    // We generate this array by mapping over 'headES' (the array of original Excel header names).
+    columns: headES.map(originalHeaderName => { // For each 'originalHeaderName' from the Excel sheet...
+      let displayTitle = originalHeaderName; // By default, the title displayed in the table header (<th>) for this column will be the 'originalHeaderName'.
+      
+      // Special handling for the display title of the 'DIRECCION' column.
+      if (originalHeaderName === direccionOriginalHeaderKey) {
+        // If the current header being processed is for the 'DIRECCION' column,
+        // set its initial display title to "Drive from Church". This title will be shown
+        // in the table header before any home address search is performed by the user.
+        displayTitle = 'Drive from Church'; // English title
+      }
+      // Format the 'displayTitle' (whether it's the original header name or the special "Drive from Church" title)
+      // using the 'formatHeaderTitle' helper function. This ensures consistent capitalization
+      // (first letter of the string uppercase, rest of the string lowercase) for all column headers.
+      displayTitle = formatHeaderTitle(displayTitle); 
+      
+      // Return the configuration object for this specific column:
+      // - 'title': This is the text that will actually be displayed in the <th> element (header cell) of this column in the rendered table.
+      // - 'data': This tells DataTables which property name to look for in the row data objects (those in the 'rows' array,
+      //   and subsequently in the 'displayList' passed to DataTables) to populate the cells (<td>) in this column.
+      //   It's crucial that 'data' matches an actual key in the data objects being supplied to the table.
+      return { title: displayTitle, data: originalHeaderName };
+    }),
+    // 'order': This option sets the initial sorting order for the table when it first loads.
+    // It's an array of arrays. Each inner array specifies a column to sort by and the direction: [columnIndex, sortDirection ('asc' or 'desc')].
+    // Here, if both the '#' column and 'ZONA' column were found (i.e., 'numIdx' and 'zonaIdx' are not -1),
+    // the table will be sorted first by the '#' column in ascending ('asc') order,
+    // and then, for rows that have the same '#' value, it will be secondarily sorted by the 'ZONA' column, also in ascending order.
+    // If these key columns for initial sorting are not found (e.g., headers are different in Excel), an empty array '[]' is passed,
+    // meaning DataTables will not apply a specific initial sort order based on this setting (it might then use the natural order of the data as supplied, or its own default).
+    order: (numIdx !== -1 && zonaIdx !== -1) ? [[numIdx, 'asc'], [zonaIdx, 'asc']] : [], 
+    pageLength: 10 // 'pageLength': Sets the default number of rows to display per page when DataTables pagination is enabled.
   });
+  // Get a reference to the HTML <div> element with the ID 'cards'.
+  // This div will serve as the container for displaying cell group information in a card-based format,
+  // which is primarily used for a more responsive and user-friendly layout on mobile devices.
   cardsDiv = document.getElementById('cards');
-  renderCards(rows);
+  
+  // Perform the initial population of the DataTable and the cards view with the processed cell data.
+  // 'filterAndDisplayCells' is responsible for taking the data from the global 'rows' array,
+  // preparing it for display (which includes setting the correct initial string for the 'DIRECCION' column,
+  // e.g., "Planta baja..." for La Cosecha, or ETA from Hub for others), and then updating both the DataTable and the cards.
+  // Since 'homePos' is null at this stage, no sorting by ETA from home will occur yet.
+  filterAndDisplayCells(); 
 
-  $('#zonaSelect').on('change', function(){
-    const v=this.value,f=v?rows.filter(r=>r['ZONE']===v):rows;
-    table.clear().rows.add(f).draw(); renderCards(f);
+  // Add an event listener to the 'Zone' filter dropdown ('#zonaSelect').
+  // The 'change' event is the standard HTML event that fires when the selected value of a <select> element
+  // has been changed by the user and that change is committed (e.g., the user clicks a new option, or the dropdown loses focus after a change).
+  $('#zonaSelect').on('change', function() {
+    // When the user changes the selected zone in the dropdown:
+    // Call the 'filterAndDisplayCells()' function. This function will:
+    // 1. Get the newly selected zone value from the dropdown.
+    // 2. Filter the main 'rows' array to get only the cells belonging to this new zone (or all cells if "— All —" is selected).
+    // 3. If 'homePos' is currently set (meaning a home address search has been performed), it will sort these filtered cells by their 'ETA_FROM_HOME'.
+    // 4. It will then prepare each of these cells for display by correctly formatting their 'DIRECCION' property string (based on home ETAs, hub ETAs, or special texts).
+    // 5. Finally, it will update both the DataTable and the cards view to show this new set of filtered (and possibly sorted) data.
+    // IMPORTANT NOTE on re-selecting "— All —": If the "— All —" option (value="") was already selected, and the user
+    // clicks on "— All —" again, the 'change' event will typically NOT fire because the actual value of the select element
+    // has not changed from its previous state. This means 'filterAndDisplayCells()' would not be called in that specific scenario.
+    // To refresh the "— All —" view to show all cells after 'runSearch()' has displayed a subset (and "— All —" was already active),
+    // the user would need to first select a different zone, and THEN select "— All —" again to trigger the 'change' event.
+    filterAndDisplayCells(); 
   });
 }
 
-/* —— cards —— */
-function renderCards(list){
-  cardsDiv.innerHTML = list.map(r=>{
-    const lines = headEN.map(h=>{
-      const key = h==='ETA' ? 'ADDRESS' : h;
-      return `<p><strong>${h}:</strong> ${r[key]}</p>`;
-    }).join('');
+/* ---------- FILTRADO Y VISUALIZACIÓN DE CÉLULAS (CELL FILTERING AND DISPLAY) ---------- */
+// This function is a core part of the application's dynamic behavior. It is responsible for:
+// 1. Determining the current set of cell groups to display based on the selected 'Zone' filter from the '#zonaSelect' dropdown.
+// 2. If a home address search has been performed (i.e., 'homePos' is set and contains valid coordinates),
+//    sorting this determined set of cell groups by their 'ETA_FROM_HOME' property in ascending order.
+// 3. For each cell group in this (potentially filtered and sorted) set, preparing it for display. This primarily involves
+//    dynamically constructing the appropriate text string for its 'DIRECCION' property. This string could be:
+//    a) The ETA from the user's home (if 'homePos' is set and a valid 'ETA_FROM_HOME' exists for the cell).
+//    b) Special static text for "Zoom" cells ("Online via Zoom").
+//    c) Special static text for "La Cosecha" zone cells when no home search is active ("Church main hall...").
+//    d) The ETA from the church/hub (if no home search is active and it's not a special zone).
+// 4. Updating the main DataTable (via 'table.clear().rows.add().draw()') and the mobile cards view (via 'renderCards()')
+//    with this final list of prepared cell group objects.
+// This function is called:
+//  - By 'buildUI()' during the initial page load to display all data with default ETAs/texts, sorted by default table order.
+//  - Whenever the user changes the selection in the 'Zone' filter dropdown (due to the 'change' event listener).
+//  - When 'homePos' (the user's home address coordinates) is cleared (e.g., via Autocomplete 'place_changed' event),
+//    to revert the displayed data and sorting to its default (pre-home-search) state.
+function filterAndDisplayCells() {
+  // Get the current value of the 'Zone' filter dropdown ('#zonaSelect').
+  // If the "— All —" option is selected, 'selectedZone' will be an empty string ("").
+  // Otherwise, it will be the string value of the selected zone (e.g., "Hempstead").
+  const selectedZone = $('#zonaSelect').val();
+  
+  // Create 'currentFilteredRows': this array will hold the cell group objects that match the current zone filter.
+  let currentFilteredRows;
+  if (selectedZone) { // If 'selectedZone' has a truthy value (i.e., it's not an empty string, so a specific zone is selected by the user).
+    // Filter the global 'rows' array (which contains all processed cell data)
+    // to get only those cell group objects ('r') whose 'ZONA' property matches the 'selectedZone'.
+    // Note: String comparison `r['ZONA'] === selectedZone` is case-sensitive. If zone names in Excel and the dropdown
+    // might have inconsistent casing, it would be safer to convert both to a consistent case (e.g., lowercase) before comparing.
+    // However, since the dropdown options are populated from the unique 'ZONA' values in 'rows', consistency should generally be maintained.
+    currentFilteredRows = rows.filter(r => String(r['ZONA']) === selectedZone);
+  } else { // If 'selectedZone' is an empty string (which means the "— All —" option is selected in the dropdown).
+    // Use a shallow copy of the entire 'rows' array. The spread operator '[...rows]' creates this new array.
+    // This ensures that when "— All —" is selected, all cell groups are considered for display.
+    // This is crucial for REQ#2 ("Todas" filter after search should show all cells): 'rows' always contains the complete master list of cells,
+    // so this step correctly retrieves all of them if "All" is selected.
+    currentFilteredRows = [...rows]; 
+  }
+
+  // NEW (REQ#2 - Sort by ETA after home address entered):
+  // If a home address search has been successfully performed (i.e., 'homePos' is set and contains valid user coordinates):
+  if (homePos) {
+    // Sort the 'currentFilteredRows' array in place. The sorting is based on the 'ETA_FROM_HOME' property of each cell.
+    // The goal is to sort the cells by their estimated travel time from the user's home in ascending order (smallest/nearest ETA first).
+    currentFilteredRows.sort((a, b) => {
+      // This is a compare function for 'Array.prototype.sort()'. It determines the relative order of two elements 'a' and 'b'.
+      // It needs to robustly handle cases where 'ETA_FROM_HOME' might be 'null' for some cells
+      // (e.g., if the ETA calculation failed for a specific cell, or for "Zoom" cells which have no physical ETA).
+      // The logic here ensures that cells with 'null' ETAs are consistently placed at the end of the sorted list.
+      if (a.ETA_FROM_HOME === null && b.ETA_FROM_HOME === null) return 0; // If both ETAs are null, they are considered equal in sort order.
+      if (a.ETA_FROM_HOME === null) return 1;  // If 'a.ETA_FROM_HOME' is null and 'b.ETA_FROM_HOME' is not, 'a' is considered "greater" and thus comes after 'b' in an ascending sort.
+      if (b.ETA_FROM_HOME === null) return -1; // If 'b.ETA_FROM_HOME' is null and 'a.ETA_FROM_HOME' is not, 'b' is considered "greater", so 'a' comes before 'b'.
+      // If both 'ETA_FROM_HOME' values are valid numbers, perform a standard numeric comparison for ascending order.
+      // If 'a.ETA_FROM_HOME' is less than 'b.ETA_FROM_HOME', a negative value is returned, so 'a' is placed before 'b'.
+      // If 'a.ETA_FROM_HOME' is greater than 'b.ETA_FROM_HOME', a positive value is returned, so 'a' is placed after 'b'.
+      return a.ETA_FROM_HOME - b.ETA_FROM_HOME; 
+    });
+  }
+  // If 'homePos' is null (i.e., no home address search has been performed, or the home address was cleared),
+  // then 'currentFilteredRows' will retain the order it had after just the zone filtering step (which is typically
+  // the original order as read from the Excel file, within that zone).
+  // In this "no home search" state, the DataTable will apply its own initial sorting rules (as configured in 'buildUI',
+  // usually by '#' column then by 'ZONA' column, if those columns exist), or any sorting the user might have
+  // subsequently applied by clicking on the table's column headers.
+
+  // Map over the 'currentFilteredRows' (which are now filtered by zone and, if applicable, sorted by ETA from home)
+  // to create a 'displayList'. 'displayList' will be an array of objects specifically prepared for rendering in the table and cards.
+  // Each object in 'displayList' will be a 'cellForDisplay' object. This is a shallow copy of a cell's data,
+  // but critically, its 'DIRECCION' property (which DataTables uses for the "Address/ETA" column) will be set
+  // to the correct display string based on the current application state (home search active, cell's zone, etc.).
+  const displayList = currentFilteredRows.map(cell => {
+    // Create a shallow copy of the 'cell' object using the spread operator '{...cell}'.
+    // This is a very important practice: we will modify the 'DIRECCION' property on this 'cellForDisplay' copy,
+    // but we want to leave the original 'cell' object (which is an element of the 'rows' array or 'currentFilteredRows')
+    // untouched with respect to its 'DIRECCION' property (which likely holds the original address string from Excel
+    // or might be undefined if that column wasn't directly mapped or was handled differently).
+    // Modifying copies ensures data integrity of the master 'rows' list.
+    const cellForDisplay = {...cell}; 
+    const zoneLowerCase = String(cell['ZONA']).toLowerCase(); // Get the cell's zone and convert to lowercase for case-insensitive comparisons.
+
+    // Primary logic for determining the string to display in the 'DIRECCION' column for this cell:
+    if (zoneLowerCase === 'zoom') {
+        // CASE 1: If the cell is in the "Zoom" zone (case-insensitive check).
+        // For Zoom cells, always display a special static text indicating it's an online meeting.
+        // This overrides any potential ETA calculations or other address information for display in this column.
+        // The text is in English for this version of the page.
+        cellForDisplay['DIRECCION'] = 'Online via Zoom';
+    } else if (homePos && typeof cell.ETA_FROM_HOME === 'number') { 
+      // CASE 2: (Not a Zoom cell) AND a home address has been successfully searched ('homePos' is set with valid coordinates) AND
+      // the current cell ('cell') has a valid numeric value for its 'ETA_FROM_HOME' property.
+      // In this scenario, the content of the 'DIRECCION' column for this cell will be the ETA from the user's home.
+      // This applies to "La Cosecha" zone cells as well, for which 'ETA_FROM_HOME' would have been calculated
+      // relative to HUB_ADDR (the church address), correctly showing travel time from user's home to the church.
+      cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`; // Format as "≈ X min".
+    } else { 
+      // CASE 3: (Not a Zoom cell) AND Fallback scenario. This case is reached if:
+      //   - No home address search has been performed ('homePos' is null), OR
+      //   - A home address search was done, but this specific cell does not have a valid numeric 'ETA_FROM_HOME'
+      //     (it might be 'null' if its ETA calculation failed).
+      // In this fallback state, display either special text for "La Cosecha" or ETA from the hub.
+      if (zoneLowerCase === 'la cosecha') { // Note: "La Cosecha" is Spanish, retained as per data.
+        // If the cell belongs to the "La Cosecha" zone (and we are in the fallback display scenario),
+        // display the special static English text indicating it's at the church.
+        cellForDisplay['DIRECCION'] = 'Church main hall (general meeting)';
+      } else {
+        // For cells in any other zone (that are not "Zoom" and are in the fallback scenario),
+        // display their ETA calculated from the Hub (church), which is stored in the 'ETA_FROM_HUB' property.
+        // If 'ETA_FROM_HUB' is null (e.g., the cell's address was unroutable from the hub, or calculation failed),
+        // display '—' (a dash) as a placeholder indicating data is not available.
+        cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min` : '—';
+      }
+    }
+    return cellForDisplay; // Return the 'cellForDisplay' object, now with its 'DIRECCION' property correctly populated for display.
+  });
+
+  // Update the DataTable with the newly prepared 'displayList', but only if the DataTable ('table') has been initialized.
+  if (table) { 
+    table.clear(); // Remove all rows currently displayed in the DataTable. This prepares it for the new set of data.
+    table.rows.add(displayList); // Add the array of 'displayList' objects to the DataTable.
+                                 // DataTables will iterate through this array. For each object, it will use the 'data' property
+                                 // defined for each column during 'buildUI' (e.g., 'data: "ZONA"', 'data: "DIRECCION"')
+                                 // to extract the corresponding values from each 'cellForDisplay' object and populate the table cells.
+    table.draw(); // Redraw the DataTable to make all changes (new rows, removal of old rows, pagination adjustments if necessary,
+                  // and application of current sorting) visible to the user.
+  }
+  // Update the cards view with the 'displayList', if the cards container ('cardsDiv') has been initialized.
+  if (cardsDiv) { 
+    renderCards(displayList); // Call the 'renderCards' function to generate and display the HTML for the cards based on the current data.
+  }
+}
+
+
+/* ---------- RENDERIZADO DE TARJETAS (CARD RENDERING) ---------- */
+// This function generates the HTML content for the "cards" view, which is primarily used on smaller screens (mobile devices).
+// It takes a 'list' of cell group objects as an argument. This 'list' is expected to be the 'displayList'
+// (or a subset of it, like 'displayDataForInitialTable' from 'runSearch') that has already been prepared
+// and formatted for display by either 'filterAndDisplayCells' or 'runSearch'.
+function renderCards(list) {
+  // The 'list' argument contains an array of 'cellObject' items. Each 'cellObject' represents one cell group.
+  // Crucially, the 'DIRECCION' property of these 'cellObject's has already been formatted
+  // to the correct display string (e.g., an ETA, "Online via Zoom", "Church main hall...", etc.) by the calling function.
+  // Other properties (like '#', 'ZONA', 'LIDER', 'IDIOMA', etc.) are also present as per the Excel data.
+
+  // The function will generate an HTML string for each card and then join them all together.
+  // This final combined HTML string will be set as the 'innerHTML' of the 'cardsDiv' element,
+  // effectively replacing any previous content in the cards view.
+  cardsDiv.innerHTML = list.map(cellObject => { // Iterate over each 'cellObject' in the 'list'.
+                                               // The '.map()' method will create a new array where each element
+                                               // is the HTML string for one card.
+    // For each 'cellObject', construct the HTML string for its corresponding card.
+    // This involves iterating over 'headES' (the array of original Excel header names, like '#', 'ZONA', 'LIDER', 'DIRECCION').
+    // For each header, a line of text (a <p> element) will be created showing "HeaderName: Value".
+    const lines = headES.map(header => {
+      // Format the 'header' string (e.g., "ZONA" becomes "Zone", "NOMBRE DEL MAESTRO/A" becomes "Name of teacher/host")
+      // using the 'formatHeaderTitle' helper function. This formatted header will be used as the label in the card.
+      const displayHeader = formatHeaderTitle(header);
+      // Create a line of text HTML in the format "<p><strong>FormattedLabel:</strong> CellValue</p>".
+      // 'cellObject[header]' accesses the value of the property corresponding to the original 'header' name in the 'cellObject'.
+      // For example, if 'header' is "ZONA", 'cellObject[header]' will be the zone value for that cell.
+      // If 'header' is "DIRECCION", 'cellObject[header]' will contain the string that was already formatted for display
+      // (e.g., the ETA, or "Online via Zoom", etc.) by 'filterAndDisplayCells' or 'runSearch'.
+      return `<p><strong>${displayHeader}:</strong> ${cellObject[header]}</p>`;
+    }).join(''); // Join all the generated <p> lines for this card into a single HTML string.
+    
+    // Wrap all the generated lines (which represent the content of one cell group) in a 'div'
+    // element with the class 'card'. This allows the CSS styles defined for '.card' to be applied.
     return `<div class="card">${lines}</div>`;
-  }).join('');
+  }).join(''); // Join the HTML strings of all individual cards into one single, large HTML string.
+               // This complete HTML string is then assigned to the 'innerHTML' property of 'cardsDiv'.
+               // This causes the browser to parse this HTML and render the cards in the 'cardsDiv' container,
+               // replacing any content that was previously there.
 }
 
-/* —— fill ETA from home —— */
-async function fillHomeEtas(){
-  await Promise.all(rows.map(async r=>{
-    if(r.ETA_HOME!=null) return;
-    const raw=r.ADDRESS_RAW;
-    if(!raw||typeof raw!=='string'||!raw.trim()||raw.trim()==='—'||
-       raw.trim().toLowerCase()==='zoom'){r.ETA_HOME=null;return;}
-    const addr=raw.split('-').pop().trim();
-    const m = await driveMin(homePos, addr);
-    r.ETA_HOME = m;
-    r['ADDRESS']= m!=null ? `≈ ${m} min` : '—';
-  }));
+/* ---------- UTILIDADES DE GEOCODIFICACIÓN Y ETA (GEOCODING AND ETA UTILITIES) ---------- */
+// Asynchronous helper function ('async') designed to obtain geographic coordinates (an object with 'lat' and 'lng' properties)
+// for a given 'locationInput'. This function is essential for converting human-readable addresses into points on a map.
+// The 'locationInput' parameter can be of two types:
+//   a) A string representing a textual address (e.g., "123 Main St, Anytown"). In this case, the function will use the Google Maps Geocoding service.
+//   b) An existing object that already contains 'lat' (latitude) and 'lng' (longitude) properties as numbers. In this case, the object is returned directly.
+// This function implements a simple caching mechanism ('geoCache') for address strings to minimize
+// redundant calls to the Google Geocoding API, which is beneficial for performance and API quota management.
+async function getCoords(locationInput) {
+  // CASE 1: 'locationInput' is a string (assumed to be an address that needs geocoding).
+  if (typeof locationInput === 'string') {
+    // First, check if the result for this address string is already in the 'geoCache'.
+    // 'geoCache' is a Map where keys are address strings and values are their geocoding results ({lat, lng} object or null).
+    if (geoCache.has(locationInput)) {
+      return geoCache.get(locationInput); // If the address is found in the cache, return the cached result immediately, avoiding an API call.
+    }
+    // If the address is not found in the cache, proceed with geocoding using the Google Maps Geocoder service.
+    return new Promise(resolve => { // Return a Promise because 'geocoder.geocode' is an asynchronous operation.
+                                    // The Promise will eventually resolve with the location object ({lat, lng}) or null if geocoding fails.
+      // Call the 'geocode' method of the 'geocoder' service instance.
+      // Pass a 'GeocoderRequest' object with the 'address' property set to 'locationInput'.
+      geocoder.geocode({ address: locationInput }, (results, status) => {
+        // This is the callback function that Google Maps invokes when the geocoding operation completes.
+        // 'results' is an array of 'GeocoderResult' objects (if successful).
+        // 'status' is a 'GeocoderStatus' string indicating the outcome (e.g., 'OK', 'ZERO_RESULTS').
+        let loc = null; // Initialize the location variable to null (default value if geocoding fails).
+        // Check if the geocoding request was successful ('status' is 'OK') and if there are valid results.
+        if (status === 'OK' && results && results[0]) {
+          // If successful, extract the latitude and longitude from the first result ('results[0]').
+          // 'results[0].geometry.location' is a 'google.maps.LatLng' object.
+          // The '.lat()' and '.lng()' methods of this object return the numerical latitude and longitude values, respectively.
+          loc = { 
+            lat: results[0].geometry.location.lat(), 
+            lng: results[0].geometry.location.lng() 
+          };
+        } else {
+          // If geocoding fails for any reason (e.g., address not found, API limit reached),
+          // log a warning to the browser's console for debugging purposes. 'loc' will remain null.
+          console.warn(`Geocoding failed for address "${locationInput}": ${status}`);
+        }
+        // Store the result of this geocoding attempt (either the 'loc' object with coordinates or 'null' if it failed)
+        // in the 'geoCache', using the original 'locationInput' string as the key.
+        // This ensures that if the same address is requested again, the cached result can be used.
+        geoCache.set(locationInput, loc);
+        // Resolve the Promise with the 'loc' object. The 'await' keyword where 'getCoords' was called will then receive this value.
+        resolve(loc); 
+      });
+    });
+  // CASE 2: 'locationInput' is already an object that appears to contain coordinates.
+  } else if (locationInput && typeof locationInput.lat === 'number' && typeof locationInput.lng === 'number') {
+    // If 'locationInput' is an object and has properties 'lat' and 'lng' which are both numbers,
+    // it's assumed to be a valid coordinate object already, so it's returned directly without any API call.
+    return locationInput; 
+  }
+  // CASE 3: 'locationInput' is neither a string (for geocoding) nor a recognized coordinate object.
+  // Log a warning to the console indicating an invalid input type, and return null.
+  console.warn("Invalid location input for getCoords:", locationInput);
+  return null; 
 }
 
-/* —— search button —— */
-async function runSearch(){
-  const raw=document.getElementById('homeInput').value.trim();
-  if(!raw) return;
-  const btn=document.getElementById('searchBtn'),
-        out=document.getElementById('nearest');
-  btn.disabled=true; out.textContent='Searching…';
-  try{
-    if(!homePos){
-      const loc=await gc(raw); if(!loc) throw Error('Could not geocode');
-      homePos=loc;
+// 'gc' is defined as a shorter alias for the 'getCoords' function.
+// It's a concise way to call 'getCoords', e.g., 'gc(addressString)' instead of 'getCoords(addressString)'.
+// This is purely for convenience or stylistic preference in other parts of the code. Functionally, it's identical to calling 'getCoords'.
+const gc = addr => getCoords(addr); 
+
+// Asynchronous function ('async') to calculate the estimated driving time in minutes between an origin and a destination.
+// Both 'originInput' and 'destinationInput' can be:
+//   - Address strings (which will be geocoded by the 'getCoords' function).
+//   - Pre-existing coordinate objects in the format {lat, lng}.
+//   - Importantly, 'destinationInput' can also be 'null' (this is used for "Zoom" cells, which are online and have no physical destination for routing).
+//     If 'destinationInput' is 'null', this function will return 'null' immediately, indicating no ETA can be calculated.
+async function driveMinutes(originInput, destinationInput) {
+  // Special handling for non-routable destinations (like Zoom cells):
+  // If 'destinationInput' is explicitly 'null', it means an ETA calculation is not applicable.
+  // Return 'null' immediately to signify this.
+  if (destinationInput === null) return null;
+
+  // Obtain the geographic coordinate objects {lat, lng} for both the origin and the destination
+  // by calling the 'getCoords' helper function. 'await' is used as 'getCoords' is asynchronous.
+  const oCoords = await getCoords(originInput); // Geocoded coordinates of the origin.
+  const dCoords = await getCoords(destinationInput); // Geocoded coordinates of the destination.
+  
+  // If either the origin or destination coordinates could not be determined (i.e., 'getCoords' returned 'null' for either),
+  // then it's impossible to calculate an ETA. Return 'null' to indicate this failure.
+  if (!oCoords || !dCoords) return null;
+
+  // Return a Promise, because the call to Google Maps Distance Matrix service is asynchronous.
+  // The Promise will eventually resolve with the calculated driving time in minutes (if successful) or 'null' (if the calculation fails).
+  return new Promise(resolve => {
+    // Call the 'getDistanceMatrix' method of the 'distSvc' (an instance of google.maps.DistanceMatrixService).
+    // This method takes a 'DistanceMatrixRequest' object as its first argument and a callback function as its second.
+    distSvc.getDistanceMatrix({
+      // 'origins': An array of origin points. Although the API supports multiple origins, here we are providing only one.
+      //            Each origin must be specified as a 'google.maps.LatLng' object, which is created from the 'lat' and 'lng' of 'oCoords'.
+      origins: [new google.maps.LatLng(oCoords.lat, oCoords.lng)],
+      // 'destinations': An array of destination points. Similar to 'origins', we provide only one destination here, as a 'google.maps.LatLng' object.
+      destinations: [new google.maps.LatLng(dCoords.lat, dCoords.lng)],
+      // 'travelMode': Specifies the mode of travel for which the ETA should be calculated.
+      //               'DRIVING' indicates that driving routes and times should be considered.
+      //               Other possible values include 'WALKING', 'BICYCLING', and 'TRANSIT'.
+      travelMode: 'DRIVING',
+      // 'drivingOptions': An object containing options specific to the 'DRIVING' travel mode.
+      drivingOptions: { 
+        // 'departureTime': Setting this to 'new Date()' (the current date and time) instructs the Distance Matrix service
+        //                  to consider current or predicted traffic conditions when estimating the travel time.
+        //                  This generally results in more accurate ETAs compared to calculations without traffic data.
+        //                  If omitted, the ETA might be based on free-flow traffic conditions or historical averages.
+        departureTime: new Date() 
+      } 
+    }, (matrixResult, status) => { // This is the callback function that Google Maps invokes once the Distance Matrix service responds.
+                                  // 'matrixResult' is a 'DistanceMatrixResponse' object containing the results (distance, duration) if successful.
+                                  // 'status' is a 'DistanceMatrixStatus' string indicating the overall success or failure of the request (e.g., 'OK', 'INVALID_REQUEST').
+      // Attempt to access the specific result element for our single origin-destination pair.
+      // The response structure is `matrixResult.rows[0].elements[0]`.
+      // Optional chaining ('?.') is used for safe property access, preventing errors if parts of the structure are undefined.
+      const element = matrixResult?.rows[0].elements[0]; 
+      
+      // Check if the overall request status ('status') AND the status of the specific element ('element.status') are both 'OK'.
+      // The 'element.status' (a 'DistanceMatrixElementStatus') could indicate issues like 'NOT_FOUND' (if an address was unroutable)
+      // or 'ZERO_RESULTS' (if no route could be found), even if the overall API request 'status' was 'OK'.
+      if (status === 'OK' && element?.status === 'OK') {
+        // If both statuses are 'OK', a valid result was found. Proceed to extract the travel duration.
+        // The API provides duration in seconds. We need to convert it to minutes.
+        // 'element.duration_in_traffic' (if available) gives the travel time considering current traffic.
+        // 'element.duration' gives the travel time typically without detailed traffic considerations (or a base time).
+        // We prioritize 'duration_in_traffic' if it exists.
+        // '.value' accesses the numerical duration in seconds.
+        // Divide by 60 to convert seconds to minutes, and then round to the nearest whole number using 'Math.round()'.
+        const durationInMinutes = Math.round((element.duration_in_traffic || element.duration).value / 60);
+        resolve(durationInMinutes); // Resolve the Promise with the calculated duration in minutes.
+      } else {
+        // If there was a problem with the request or if a valid route/duration was not found,
+        // log a warning to the console with details about the origin, destination, and status codes. This aids in debugging.
+        console.warn(`DistanceMatrix failed between ${JSON.stringify(oCoords)} and ${JSON.stringify(dCoords)}: ${status}, element status: ${element?.status}`);
+        resolve(null); // Resolve the Promise with 'null' to indicate that the ETA calculation failed.
+      }
+    });
+  });
+}
+
+/* ---------- USER SEARCH LOGIC ---------- */
+// This asynchronous function ('async') is executed when the user initiates a search for cell groups near their home address
+// (either by clicking the "Search" button or by pressing Enter in the home address input field).
+// Its main responsibilities are:
+// 1. To validate the user's home address input and obtain its geographic coordinates ('homePos').
+// 2. To calculate the Estimated Time of Arrival (ETA) from this 'homePos' to the 'EFFECTIVE_ROUTING_ADDRESS'
+//    of every cell group registered in the 'rows' array.
+// 3. To update the header of the 'DIRECCION' (Address/ETA) column in the DataTable to "Drive from Home",
+//    signifying that the ETAs (or cell relevance) are now based on the user's home location.
+// 4. To identify a subset of cell groups to display initially after the search. This subset includes:
+//    a) Geographically nearest cells: Those whose ETA from home is no more than 3 minutes greater than the ETA of the absolute nearest cell.
+//    b) All cells designated as being in the "Zoom" zone (these are always included).
+// 5. To display a message in the '#nearest' div with detailed information (name, ETA, teacher/host, phone)
+//    about the single, absolute geographically nearest cell (if one is found).
+// 6. To update the DataTable and the mobile cards view to show only this combined subset of initially relevant cells.
+//    The table will show these cells. Subsequent interactions with the "Zone" filter by the user will then
+//    trigger 'filterAndDisplayCells' to display cells for the selected zone, sorted by ETA from home.
+async function runSearch() {
+  // Step 1: Get and validate the user's home address input.
+  // Retrieve the current value from the home address input field ('#homeInput'),
+  // and remove any leading or trailing whitespace using '.trim()'.
+  const rawHomeAddress = document.getElementById('homeInput').value.trim();
+  // Get a reference to the DOM element (div with ID '#nearest') where messages about the nearest cell will be displayed.
+  const outNearestDiv = document.getElementById('nearest');
+  // Get a reference to the DOM element of the search button ('#searchBtn').
+  const searchButton = document.getElementById('searchBtn');
+  
+  // --- Input Validation and Geocoding (if homePos is not already set by Autocomplete) ---
+  // Check if the 'rawHomeAddress' string is empty after trimming.
+  if (!rawHomeAddress) {
+    outNearestDiv.textContent = 'Please enter a home address.'; // Display an error message in English.
+    return; // Exit the 'runSearch' function early if no address was provided.
+  }
+  // Check if the global 'homePos' variable (which stores {lat, lng} of the home address) is currently 'null'
+  // AND if 'rawHomeAddress' (the text typed by the user) is not empty.
+  // This condition is met if the user typed an address and pressed Enter or Search without selecting an Autocomplete suggestion
+  // that would have already populated 'homePos' via the 'place_changed' event.
+  if (!homePos && rawHomeAddress) { 
+      // If 'homePos' is not set but there's text in the input, attempt to geocode that text directly.
+      const loc = await getCoords(rawHomeAddress); // 'getCoords' is asynchronous.
+      if (!loc) { // If 'getCoords' returns 'null', it means the typed address could not be geocoded.
+          outNearestDiv.textContent = 'Error: Could not geocode the entered home address.'; // Display error message in English.
+          return; // Exit the function.
+      }
+      homePos = loc; // If geocoding was successful, update the global 'homePos' with the obtained coordinates.
+  }
+  // After the above step (or if 'homePos' was already set by Autocomplete),
+  // perform a final check: if 'homePos' is still 'null', it means a valid home address could not be determined.
+  if (!homePos) { 
+    outNearestDiv.textContent = 'Error: Invalid or unselected home address.'; // Display error message in English.
+    return; // Exit the function.
+  }
+
+  // --- UI Updates to Indicate Search is in Progress ---
+  searchButton.disabled = true; // Disable the search button to prevent multiple concurrent searches.
+  outNearestDiv.textContent = 'Searching for nearby cells…'; // Display a message to the user indicating that the search process has started.
+
+  try { // Wrap the core search logic (API calls, data processing) in a try...catch block to handle potential errors.
+    // --- Step 2: Calculate ETAs from the User's Home to All Cell Groups ---
+    // Create an array of Promises. Each Promise will resolve once the ETA calculation for a single cell group is complete.
+    // 'rows.map(async (cell) => ...)' iterates over each 'cell' object in the global 'rows' array.
+    // The 'async' keyword on the callback function allows the use of 'await' inside it for the 'driveMinutes' call.
+    const promises = rows.map(async (cell) => { 
+      // For each 'cell', calculate the driving time from 'homePos' (user's home) to the cell's 'EFFECTIVE_ROUTING_ADDRESS'.
+      // 'EFFECTIVE_ROUTING_ADDRESS' was determined in 'loadSheet()'. For "Zoom" cells, it's 'null', so 'driveMinutes' will return 'null' for their ETA.
+      const eta = await driveMinutes(homePos, cell['EFFECTIVE_ROUTING_ADDRESS']);
+      // Update the 'ETA_FROM_HOME' property of the 'cell' object (this modifies the object directly in the 'rows' array).
+      // 'eta' will be the number of minutes, or 'null' if the calculation failed or was not applicable.
+      cell.ETA_FROM_HOME = eta; 
+      return cell; // While 'cell' is modified by reference, returning it is typical for '.map'.
+    });
+    // 'await Promise.all(promises)' pauses execution here until *all* the Promises in the 'promises' array have resolved.
+    // This ensures that ETAs from home have been calculated (or attempted) for every cell group before proceeding.
+    await Promise.all(promises); 
+
+    // --- Step 3: Update the 'DIRECCION' Column Header in the DataTable ---
+    // Now that ETAs from home have been processed, change the header of the 'DIRECCION' column
+    // to "Drive from Home" to reflect that the time-related information in that column (or the sorting of cells)
+    // is now relative to the user's home address.
+    const direccionOriginalHeaderKey = 'DIRECCION'; // The data property key for this column.
+    const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey); // Find the column's index.
+    if (direccionColumnIndex !== -1 && table) { // Check if the column exists and the DataTable is initialized.
+      const column = table.column(direccionColumnIndex); // Get the DataTables column object.
+      // Use jQuery to get the column's header element (<th>) and set its HTML content.
+      // 'formatHeaderTitle' ensures the new header text is capitalized correctly ("Drive from home").
+      $(column.header()).html(formatHeaderTitle('Drive from Home')); 
     }
-    await fillHomeEtas();
-    table.clear().rows.add(rows).draw(); renderCards(rows);
 
-    const zoomRow = rows.find(r=>String(r.ADDRESS_RAW).toLowerCase().includes('zoom'));
+    // --- Step 4: Identify and Prepare the Subset of Cells to Display Initially After Search ---
+    // This subset includes geographically nearest cells (within a threshold) AND all "Zoom" cells.
 
-    const results = rows.filter(r=>typeof r.ETA_HOME==='number')
-                        .map(r=>({eta:r.ETA_HOME,row:r}))
-                        .sort((a,b)=>a.eta-b.eta);
+    // 1. Create a new array 'cellsWithEtaForSorting' containing shallow copies of all cell objects from 'rows'.
+    //    This is done to allow sorting without modifying the original order of the global 'rows' array.
+    let cellsWithEtaForSorting = rows.map(cell => ({...cell})); 
+    // 2. Sort 'cellsWithEtaForSorting' based on the 'ETA_FROM_HOME' property in ascending order.
+    //    The custom sort function handles 'null' ETAs by placing them at the end of the sorted list.
+    //    This ensures that cells for which ETA could not be calculated (including Zoom cells, which have null ETA_FROM_HOME)
+    //    are grouped together after all routable cells.
+    cellsWithEtaForSorting.sort((a, b) => {
+      if (a.ETA_FROM_HOME === null && b.ETA_FROM_HOME === null) return 0;
+      if (a.ETA_FROM_HOME === null) return 1;
+      if (b.ETA_FROM_HOME === null) return -1;
+      return a.ETA_FROM_HOME - b.ETA_FROM_HOME;
+    });
+    
+    // 3. Filter 'cellsWithEtaForSorting' to get 'allCellsWithValidEta'. This array will contain only those cells
+    //    that have a non-null 'ETA_FROM_HOME' (i.e., geographically routable cells for which an ETA was successfully calculated).
+    //    These cells are already sorted by their ETA from home.
+    const allCellsWithValidEta = cellsWithEtaForSorting.filter(c => c.ETA_FROM_HOME !== null);
+    
+    // Variables to store the list of geographically nearest cells and details of the absolute nearest one.
+    let geographicallyNearestCells = []; 
+    let absoluteNearestCell = null;  // Will hold the object of the single closest routable cell.
+    let minEtaValue = Infinity;      // Will hold the ETA (in minutes) of the 'absoluteNearestCell'.
 
-    const within3 = results.filter(x=>x.eta<=3);
-    let show;
-    if(within3.length>2) show=within3;
-    else{
-      show=results.slice(0,2);
-      if(zoomRow&&!show.some(x=>x.row===zoomRow))
-        show.push({eta:'—',row:zoomRow});
+    // 4. Determine the geographically nearest cells based on the ETA threshold.
+    if (allCellsWithValidEta.length > 0) { // Proceed only if there's at least one routable cell with a valid ETA.
+      // The 'absoluteNearestCell' is the first one in 'allCellsWithValidEta' (because it's sorted by ETA).
+      absoluteNearestCell = allCellsWithValidEta[0]; 
+      minEtaValue = absoluteNearestCell.ETA_FROM_HOME; // This is the ETA of the closest cell.
+      // Define the ETA threshold: cells are considered "nearby" if their ETA is within 'minEtaValue + 3 minutes'.
+      const etaThreshold = minEtaValue + 3; 
+
+      // Filter 'allCellsWithValidEta' to get 'geographicallyNearestCells':
+      // this array will contain all routable cells whose 'ETA_FROM_HOME' is less than or equal to 'etaThreshold'.
+      geographicallyNearestCells = allCellsWithValidEta.filter(c => c.ETA_FROM_HOME <= etaThreshold);
     }
+    
+    // 5. Get all "Zoom" zone cells directly from the master 'rows' list.
+    //    These are included regardless of any ETA calculation (as their ETA is typically null).
+    const zoomCells = rows.filter(r => String(r['ZONA']).toLowerCase() === 'zoom');
 
-    if(!show.length){
-      out.textContent='No nearby cells found.';
-      btn.disabled=false; return;
+    // 6. Combine 'geographicallyNearestCells' with 'zoomCells' into a single list for initial display.
+    //    A 'Set' ('displayedCellIds') is used to track cell IDs (assuming '#' is a unique ID from Excel)
+    //    to prevent adding duplicate cells to the final list if a cell somehow appeared in both groups
+    //    (highly unlikely given Zoom cells have null ETAs and shouldn't be in 'geographicallyNearestCells', but this ensures robustness).
+    const displayedCellIds = new Set();
+    let combinedDisplayListRaw = []; // This will hold the raw cell objects for the combined list.
+
+    // Add geographically nearest cells to the combined list first, checking for uniqueness.
+    geographicallyNearestCells.forEach(cell => {
+        if (!displayedCellIds.has(cell['#'])) { // Assuming '#' column contains unique cell identifiers.
+            combinedDisplayListRaw.push(cell);
+            displayedCellIds.add(cell['#']);
+        }
+    });
+
+    // Then, add Zoom cells to the combined list, also checking for uniqueness.
+    zoomCells.forEach(cell => {
+        if (!displayedCellIds.has(cell['#'])) {
+            combinedDisplayListRaw.push(cell); // Add the raw 'cell' object. Its 'DIRECCION' will be formatted in the next step.
+            displayedCellIds.add(cell['#']);
+        }
+    });
+    // At this point, 'combinedDisplayListRaw' contains all the cells that should be displayed initially after the search:
+    // first the geographically nearest ones (sorted by their ETA), followed by any unique Zoom cells.
+    // The overall sorting of this combined list for this initial display will depend on this concatenation order.
+    // Later, if the user changes the zone filter, 'filterAndDisplayCells' will handle sorting of the full displayed list.
+
+    // --- Step 5: Update the "Nearest Cell" Message ---
+    // Display a message in the '#nearest' div.
+    if (absoluteNearestCell) { // If a geographically nearest cell was found (i.e., 'minEtaValue' is not Infinity).
+      // Construct and display a message with details of this 'absoluteNearestCell'.
+      outNearestDiv.textContent = `The nearest cell (#${absoluteNearestCell['#']}) is approx. ${minEtaValue} min away. ` + // Message in English.
+                        `Teacher/Host: ${absoluteNearestCell['MAESTRO']}, ` + // Assumes 'MAESTRO' is the correct key for Teacher/Host.
+                        `Tel: ${absoluteNearestCell['TELEFONO']}.`;           // Assumes 'TELEFONO' is the correct key for Phone.
+    } else if (zoomCells.length > 0 && combinedDisplayListRaw.length > 0) { // If no geographic cells were found but Zoom cells will be displayed.
+        outNearestDiv.textContent = 'Zoom cells are available. See table for details.'; // English message for Zoom availability.
+    } else { // If no geographically near cells were found AND no Zoom cells are in the combined list (or list is empty).
+        outNearestDiv.textContent = 'No nearby cells found or travel time could not be calculated.'; // English message.
     }
+      
+    // --- Step 6: Prepare Final Data for Display and Update UI (Table and Cards) ---
+    // Map over 'combinedDisplayListRaw' (which contains the selected geographically near cells and Zoom cells)
+    // to create 'displayDataForTable'. In this step, the 'DIRECCION' property of each cell is formatted
+    // for display based on whether it's a Zoom cell or a geolocated cell with an ETA.
+    const displayDataForTable = combinedDisplayListRaw.map(cell => {
+      const displayCell = {...cell}; // Create a shallow copy for display modification.
+      const zoneLowerCase = String(cell['ZONA']).toLowerCase(); // Get cell's zone in lowercase.
 
-    show.forEach(x=>x.row['ADDRESS']=x.eta!=='—'?`≈ ${x.eta} min`:'Zoom');
-    table.clear().rows.add(show.map(x=>x.row)).draw();
-    renderCards(show.map(x=>x.row));
+      if (zoneLowerCase === 'zoom') { // If it's a "Zoom" cell.
+          displayCell['DIRECCION'] = 'Online via Zoom'; // Set 'DIRECCION' to the special text for Zoom cells.
+      } else if (cell.ETA_FROM_HOME !== null) { // If it's a geographically near cell with a valid 'ETA_FROM_HOME'.
+          displayCell['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`; // Display its ETA from home.
+      } else { // Fallback for any other type of cell that might be in this list (should be rare with current logic, but good for robustness).
+               // This might happen if a non-Zoom cell from 'combinedDisplayListRaw' somehow had a null 'ETA_FROM_HOME'
+               // (e.g., if it was a Zoom cell that wasn't caught by the 'zoom' check, or a geo cell whose ETA failed but was still included).
+          if (zoneLowerCase === 'la cosecha') { // If it's "La Cosecha" zone.
+               displayCell['DIRECCION'] = 'Church main hall (general meeting)'; // English static text for La Cosecha.
+          } else { // For any other zone in this fallback scenario.
+               // Attempt to show ETA from Hub, or the original address from Excel, or a dash if all else fails.
+               displayCell['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min` : (cell.DIRECCION_FROM_EXCEL || '—');
+          }
+      }
+      return displayCell; // Return the 'displayCell' object with its 'DIRECCION' property correctly set for display.
+    });
 
-    const best=show[0];
-    out.textContent=`≈ ${best.eta} min to the nearest cell (#${best.row['#']} – ${best.row['ZONE']})`;
-  }catch(e){ out.textContent='Error: '+e.message; }
-  btn.disabled=false;
+    // Update the DataTable and the cards view with this 'displayDataForTable'
+    // (which contains the initially displayed subset of nearest geographic cells plus all Zoom cells).
+    if (table) { // Check if the DataTable ('table') has been initialized.
+      table.clear().rows.add(displayDataForTable).draw(); // Clear existing rows, add the new data, and redraw the table.
+    }
+    renderCards(displayDataForTable); // Update the cards view.
+
+    // IMPORTANT NOTE on "— All —" filter behavior after this search:
+    // As per the user's latest clarification, 'runSearch()' now ONLY displays the 'displayDataForTable' (nearest subset + Zoom).
+    // It does NOT automatically call 'filterAndDisplayCells()' to show all cells, even if "— All —" was previously selected.
+    // To see all cells again (sorted by ETA from home), the user MUST explicitly interact with the "Zone" filter
+    // and select "— All —" (or any other zone). If "— All —" is selected and this action constitutes a *change* in the
+    // dropdown's value, the 'change' event listener on '#zonaSelect' will trigger 'filterAndDisplayCells()',
+    // which will then correctly display all cells from the master 'rows' list, sorted by 'ETA_FROM_HOME'.
+
+  } catch(e) { // Catch any errors that might occur during the 'try' block (e.g., network errors during API calls, unexpected data issues).
+    outNearestDiv.textContent = 'Error during search: ' + e.message; // Display a generic error message to the user, in English.
+    console.error("Error in runSearch:", e); // Log the detailed error object (with stack trace, if available) to the browser's console for debugging by developers.
+  } finally { // The 'finally' block executes regardless of whether an error occurred in the 'try' block or not.
+    searchButton.disabled = false; // Always re-enable the search button, so the user can attempt another search if they wish.
+  }
 }
 </script>
 </body>
