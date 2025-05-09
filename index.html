@@ -95,6 +95,21 @@ async function gmapsReady(){
     }
   });
   document.getElementById('searchBtn').addEventListener('click',runSearch);
+
+  // Add event listener for 'Enter' key on the home input field
+  document.getElementById('homeInput').addEventListener('keypress', function(event) {
+    // Check if the key pressed was 'Enter'
+    if (event.key === 'Enter') {
+      event.preventDefault(); // Prevent any default action (like form submission)
+      // Ensure the search button is not disabled before attempting to search
+      // This check might be useful if you have conditions where the button could be disabled
+      // for reasons other than an ongoing search. For now, directly calling runSearch is fine.
+      // if (!document.getElementById('searchBtn').disabled) {
+      //   runSearch();
+      // }
+      runSearch(); // Call the existing search function
+    }
+  });
 }
 
 /* ---------- lee Excel, filtra y reemplaza dirección por ETA ---------- */
@@ -253,12 +268,12 @@ async function runSearch(){
     const promises = rows.map(async (cell) => {
       const eta = await driveMinutes(homePos, cell['DIRECCION_RAW']);
       cell.ETA_FROM_HOME = eta; // Update the main rows array
-      return cell; // Return cell for further processing if needed, not strictly necessary here
+      return cell; 
     });
     await Promise.all(promises);
 
-    // Create a temporary list with ETAs for sorting, ensuring ETA_FROM_HOME is considered
-    let cellsWithEta = rows.map(cell => ({...cell})); // Work with copies for sorting
+    // Create a temporary list with ETAs for sorting
+    let cellsWithEta = rows.map(cell => ({...cell})); 
 
     // Sort by ETA_FROM_HOME, nulls (errors in calculation) last
     cellsWithEta.sort((a, b) => {
@@ -272,11 +287,11 @@ async function runSearch(){
 
     if (nearestThree.length > 0) {
       const nearestCell = nearestThree[0];
+      // Corrected line below to use 'MAESTRO' and 'TELEFONO'
       out.textContent = `La célula más cercana (#${nearestCell['#']}) está a ≈ ${nearestCell.ETA_FROM_HOME} min. ` +
-                        `Maestro/a: ${nearestCell['NOMBRE DEL MAESTRO/A']}, ` +
-                        `Tel: ${nearestCell['NUMERO DE TELEFONO']}.`;
+                        `Maestro/a: ${nearestCell['MAESTRO']}, ` +
+                        `Tel: ${nearestCell['TELEFONO']}.`;
       
-      // Prepare these three cells for display with their 'DIRECCION' showing ETA from home
       const displayDataNearestThree = nearestThree.map(cell => {
         const displayCell = {...cell};
         displayCell['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
@@ -285,8 +300,6 @@ async function runSearch(){
 
       table.clear().rows.add(displayDataNearestThree).draw();
       renderCards(displayDataNearestThree);
-      // Note: The zone filter is NOT changed here. The user's next interaction with it
-      // will use filterAndDisplayCells, which will apply home ETAs if available.
     } else {
       out.textContent = 'No se encontraron células cercanas o no se pudo calcular el tiempo de viaje.';
     }
