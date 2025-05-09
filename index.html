@@ -60,7 +60,6 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 <div id="cards"  class="cards"></div>
 <div id="error"  hidden></div>
 
-<!-- librerías -->
 <script src="./xlsx.full.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
@@ -74,14 +73,14 @@ const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
 
 /* ---------- estado ---------- */
 let headES=[], rows=[], table, cardsDiv,
-    geocoder, distSvc, homePos=null;
+    geocoder, distSvc, homePos=null; // homePos will store {lat, lng} of user's address
 const geoCache=new Map();
 
 /* ---------- Google Maps listo ---------- */
 async function gmapsReady(){
   geocoder=new google.maps.Geocoder();
   distSvc =new google.maps.DistanceMatrixService();
-  await loadSheet();                              // lee Excel y construye UI
+  await loadSheet();                      // lee Excel y construye UI
 
   const ac=new google.maps.places.Autocomplete(
     document.getElementById('homeInput'),{types:['geocode']});
@@ -89,6 +88,11 @@ async function gmapsReady(){
     const p=ac.getPlace();
     homePos = p.geometry ? {lat:p.geometry.location.lat(),
                             lng:p.geometry.location.lng()} : null;
+    if (!homePos) {
+        // Optionally clear previous results if place is cleared or invalid
+        document.getElementById('nearest').textContent = '';
+        // Potentially reset ETA_FROM_HOME in rows if needed, or rely on filterAndDisplayCells
+    }
   });
   document.getElementById('searchBtn').addEventListener('click',runSearch);
 }
@@ -102,20 +106,22 @@ async function loadSheet(){
     headES  =arr[0].map(h=>String(h).trim());
 
     rows = arr.slice(1)
-              .filter(r=>r.some(x=>x!==''))
-              .map(r=>{
-                const o={}; headES.forEach((h,i)=>o[h]=r[i]); return o;
-              })
-              .filter(o=>{
-                const l=String(o['IDIOMA']).toLowerCase();
-                return l==='español'||l==='bilingüe';
-              });
+             .filter(r=>r.some(x=>x!==''))
+             .map(r=>{
+               const o={}; headES.forEach((h,i)=>o[h]=r[i]); return o;
+             })
+             .filter(o=>{
+               const l=String(o['IDIOMA']).toLowerCase();
+               return l==='español'||l==='bilingüe';
+             });
 
     /* ▸ calcular ETA celda → HUB y sustituir dirección */
     await Promise.all(rows.map(async o=>{
-      o['DIRECCION_RAW'] = o['DIRECCION'];                        // guarda original
-      const eta = await driveMinutes(o['DIRECCION_RAW'], HUB_ADDR);
-      o['DIRECCION'] = eta!=null ? `≈ ${eta} min` : '—';
+      o['DIRECCION_RAW'] = o['DIRECCION']; // guarda original
+      const etaHub = await driveMinutes(o['DIRECCION_RAW'], HUB_ADDR);
+      o['ETA_FROM_HUB'] = etaHub; // Store numeric ETA or null
+      o['DIRECCION'] = etaHub != null ? `≈ ${etaHub} min` : '—'; // Default display
+      o['ETA_FROM_HOME'] = null; // Initialize ETA from home
     }));
 
     buildUI();
@@ -130,75 +136,167 @@ function buildUI(){
   const numIdx=headES.indexOf('#'), zonaIdx=headES.indexOf('ZONA');
 
   table=$('#tabla').DataTable({
-    data:rows,
     columns:headES.map(h=>({title:h,data:h})),
     order:[[numIdx,'asc'],[zonaIdx,'asc']],
     pageLength:10
   });
   cardsDiv=document.getElementById('cards');
-  renderCards(rows);
+  
+  filterAndDisplayCells(); // Initial population of table and cards
 
   $('#zonaSelect').on('change',function(){
-    $('#nearest').text('');
-    const v=this.value,f=v?rows.filter(r=>r['ZONA']===v):rows;
-    table.clear().rows.add(f).draw(); renderCards(f); homePos=null;
+    // Do not clear #nearest here, user might want to see nearest info while changing zone
+    // $('#nearest').text(''); 
+    filterAndDisplayCells(); 
   });
 }
+
+/* ---------- Prepara datos y actualiza DataTable y Tarjetas ---------- */
+function filterAndDisplayCells() {
+  const selectedZone = $('#zonaSelect').val();
+  let currentFilteredRows = selectedZone ? rows.filter(r => r['ZONA'] === selectedZone) : [...rows]; 
+
+  const displayList = currentFilteredRows.map(cell => {
+    const cellForDisplay = {...cell}; // Create a copy for modification
+
+    // Check if homePos is set (meaning a search occurred/place selected) AND ETA_FROM_HOME is calculated
+    if (homePos && typeof cell.ETA_FROM_HOME === 'number') { 
+      cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
+    } else {
+      // Fallback to HUB ETA text (already set in cell.DIRECCION or derive from ETA_FROM_HUB)
+      cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min` : '—';
+    }
+    return cellForDisplay;
+  });
+
+  if (table) { 
+    table.clear().rows.add(displayList).draw();
+  }
+  if (cardsDiv) { 
+    renderCards(displayList);
+  }
+}
+
 
 /* ---------- render Cards (todas las columnas) ---------- */
 function renderCards(list){
   cardsDiv.innerHTML=list.map(o=>{
+    // Ensure 'DIRECCION' shown in cards is the potentially modified one
     const lines=headES.map(h=>`<p><strong>${h}:</strong> ${o[h]}</p>`).join('');
     return `<div class="card">${lines}</div>`;
   }).join('');
 }
 
 /* ---------- utilidades geocodificación / ETA ---------- */
-const gc=addr=>{
-  if(geoCache.has(addr)) return geoCache.get(addr);
-  return new Promise(r=>geocoder.geocode({address:addr},(re,st)=>{
-    const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
-    geoCache.set(addr,loc); r(loc);
-  }));
-};
-async function driveMinutes(from,to){
-  const o=await gc(from), d=await gc(to); if(!o||!d) return null;
+async function getCoords(locationInput) {
+  if (typeof locationInput === 'string') {
+    if(geoCache.has(locationInput)) return geoCache.get(locationInput);
+    return new Promise(r=>geocoder.geocode({address:locationInput},(re,st)=>{
+      const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
+      geoCache.set(locationInput,loc); r(loc);
+    }));
+  } else if (locationInput && typeof locationInput.lat === 'number' && typeof locationInput.lng === 'number') {
+    return locationInput; // Already {lat, lng}
+  }
+  console.warn("Invalid location input for getCoords:", locationInput);
+  return null; 
+}
+
+const gc = addr => getCoords(addr); // Keep gc for simplicity if preferred, though getCoords is more descriptive
+
+async function driveMinutes(originInput, destinationInput){
+  const oCoords = await getCoords(originInput);
+  const dCoords = await getCoords(destinationInput);
+  if(!oCoords || !dCoords) return null;
+
   return new Promise(r=>distSvc.getDistanceMatrix({
-    origins:[new google.maps.LatLng(o.lat,o.lng)],
-    destinations:[new google.maps.LatLng(d.lat,d.lng)],
+    origins:[new google.maps.LatLng(oCoords.lat, oCoords.lng)],
+    destinations:[new google.maps.LatLng(dCoords.lat, dCoords.lng)],
     travelMode:'DRIVING',
-    drivingOptions:{departureTime:new Date()}
+    drivingOptions:{departureTime:new Date()} // Using departureTime for traffic estimation
   },(m,st)=>{
     const el=m?.rows[0].elements[0];
     r(st==='OK'&&el.status==='OK'
-       ? Math.round((el.duration_in_traffic||el.duration).value/60)
-       : null);
+        ? Math.round((el.duration_in_traffic||el.duration).value/60) // Prioritize duration_in_traffic
+        : null);
   }));
 }
 
 /* ---------- búsqueda del usuario ---------- */
 async function runSearch(){
-  const raw=document.getElementById('homeInput').value.trim();
-  if(!raw) return;
-  const btn=document.getElementById('searchBtn'), out=document.getElementById('nearest');
-  btn.disabled=true; out.textContent='Buscando…';
-  try{
-    if(!homePos){
-      const loc=await gc(raw); if(!loc) throw Error('No se pudo geocodificar');
-      homePos=loc;
+  const rawHomeAddress = document.getElementById('homeInput').value.trim();
+  const out = document.getElementById('nearest');
+  const btn = document.getElementById('searchBtn');
+  
+  if (!rawHomeAddress) {
+    out.textContent = 'Por favor, ingrese una dirección de casa.';
+    return;
+  }
+  if (!homePos && rawHomeAddress) { // If homePos not set by autocomplete, try to geocode now
+      const loc = await getCoords(rawHomeAddress);
+      if (!loc) {
+          out.textContent = 'Error: No se pudo geocodificar la dirección de casa ingresada.';
+          return;
+      }
+      homePos = loc;
+  }
+  if (!homePos) { // Still no homePos
+    out.textContent = 'Error: Dirección de casa no válida o no seleccionada.';
+    return;
+  }
+
+  btn.disabled = true; 
+  out.textContent = 'Buscando células cercanas…';
+
+  try {
+    // Calculate ETA from home for ALL cells and store it in the main 'rows' array
+    const promises = rows.map(async (cell) => {
+      const eta = await driveMinutes(homePos, cell['DIRECCION_RAW']);
+      cell.ETA_FROM_HOME = eta; // Update the main rows array
+      return cell; // Return cell for further processing if needed, not strictly necessary here
+    });
+    await Promise.all(promises);
+
+    // Create a temporary list with ETAs for sorting, ensuring ETA_FROM_HOME is considered
+    let cellsWithEta = rows.map(cell => ({...cell})); // Work with copies for sorting
+
+    // Sort by ETA_FROM_HOME, nulls (errors in calculation) last
+    cellsWithEta.sort((a, b) => {
+      if (a.ETA_FROM_HOME === null && b.ETA_FROM_HOME === null) return 0;
+      if (a.ETA_FROM_HOME === null) return 1;
+      if (b.ETA_FROM_HOME === null) return -1;
+      return a.ETA_FROM_HOME - b.ETA_FROM_HOME;
+    });
+
+    const nearestThree = cellsWithEta.filter(c => c.ETA_FROM_HOME !== null).slice(0, 3);
+
+    if (nearestThree.length > 0) {
+      const nearestCell = nearestThree[0];
+      out.textContent = `La célula más cercana (#${nearestCell['#']}) está a ≈ ${nearestCell.ETA_FROM_HOME} min. ` +
+                        `Maestro/a: ${nearestCell['NOMBRE DEL MAESTRO/A']}, ` +
+                        `Tel: ${nearestCell['NUMERO DE TELEFONO']}.`;
+      
+      // Prepare these three cells for display with their 'DIRECCION' showing ETA from home
+      const displayDataNearestThree = nearestThree.map(cell => {
+        const displayCell = {...cell};
+        displayCell['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
+        return displayCell;
+      });
+
+      table.clear().rows.add(displayDataNearestThree).draw();
+      renderCards(displayDataNearestThree);
+      // Note: The zone filter is NOT changed here. The user's next interaction with it
+      // will use filterAndDisplayCells, which will apply home ETAs if available.
+    } else {
+      out.textContent = 'No se encontraron células cercanas o no se pudo calcular el tiempo de viaje.';
     }
-    let best=null,min=Infinity;
-    for(const r of rows){
-      const destAddr=r['DIRECCION_RAW'];
-      const eta=await driveMinutes(raw, destAddr.split('-').pop().trim());
-      if(eta!=null&&eta<min){min=eta; best=r;}
-    }
-    if(!best) throw Error('No se encontró destino');
-    best['DIRECCION']=`≈ ${min} min`;
-    out.textContent=`≈ ${min} min hasta la célula más cercana (#${best['#']} – ${best['ZONA']})`;
-    table.clear().rows.add([best]).draw(); renderCards([best]);
-  }catch(e){ out.textContent='Error: '+e.message; }
-  btn.disabled=false;
+
+  } catch(e) {
+    out.textContent = 'Error durante la búsqueda: ' + e.message;
+    console.error("Error in runSearch:", e);
+  } finally {
+    btn.disabled = false;
+  }
 }
 </script>
 </body>
