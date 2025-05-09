@@ -119,7 +119,7 @@ async function gmapsReady() {
       const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey);
       if (direccionColumnIndex !== -1 && table) {
         const column = table.column(direccionColumnIndex);
-        $(column.header()).html('conducir desde la iglesia'); // Update header text using jQuery.
+        $(column.header()).html('CONDUCIR DESDE LA IGLESIA'); // Update header text using jQuery.
       }
       
       // Re-render the table and cards. Since homePos is now null,
@@ -212,7 +212,7 @@ function buildUI() {
       let displayTitle = originalHeaderName;
       // If this is the 'DIRECCION' column, set its initial display title.
       if (originalHeaderName === direccionOriginalHeaderKey) {
-        displayTitle = 'conducir desde la iglesia'; 
+        displayTitle = 'CONDUCIR DESDE LA IGLESIA'; 
       }
       // 'data' property tells DataTables which field in the data object to use for this column.
       // 'title' property is the text displayed in the column header.
@@ -385,7 +385,7 @@ async function runSearch() {
     const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey);
     if (direccionColumnIndex !== -1 && table) {
       const column = table.column(direccionColumnIndex);
-      $(column.header()).html('conduce desde tu casa'); 
+      $(column.header()).html('CONDUCIR DESDE TU CASA'); 
     }
 
     // Create a temporary list of cells (shallow copies) to sort by ETA from home.
