@@ -60,255 +60,375 @@ table.dataTable tbody tr:nth-child(even) td{background:#f8f8f8}
 <div id="cards"  class="cards"></div>
 <div id="error"  hidden></div>
 
-<script src="./xlsx.full.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script async defer
+<script src="./xlsx.full.min.js"></script> <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script> <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script> <script async defer
   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=gmapsReady">
 </script>
 
 <script>
-/* ---------- constantes ---------- */
+/* ---------- CONSTANTES (CONSTANTS) ---------- */
+// HUB_ADDR: The fixed address of the church. Used as the origin for initial ETA calculations.
 const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
 
-/* ---------- estado ---------- */
-let headES=[], rows=[], table, cardsDiv,
-    geocoder, distSvc, homePos=null; // homePos will store {lat, lng} of user's address
-const geoCache=new Map();
+/* ---------- ESTADO GLOBAL (GLOBAL STATE) ---------- */
+// headES: Array to store the headers from the Excel sheet.
+let headES = [];
+// rows: Array to store the data for each cell (bible study group), processed from the Excel sheet.
+let rows = [];
+// table: Variable to hold the DataTables instance.
+let table;
+// cardsDiv: DOM element where cards for mobile view will be rendered.
+let cardsDiv;
+// geocoder: Google Maps Geocoder instance, used to convert addresses to coordinates.
+let geocoder;
+// distSvc: Google Maps DistanceMatrixService instance, used to calculate travel times.
+let distSvc;
+// homePos: Object to store the latitude and longitude of the user's input home address. Null if not set.
+let homePos = null;
+// geoCache: A Map to cache geocoding results (address -> {lat, lng}) to avoid redundant API calls.
+const geoCache = new Map();
 
-/* ---------- Google Maps listo ---------- */
-async function gmapsReady(){
-  geocoder=new google.maps.Geocoder();
-  distSvc =new google.maps.DistanceMatrixService();
-  await loadSheet();                      // lee Excel y construye UI
+/* ---------- GOOGLE MAPS LISTO (GOOGLE MAPS READY) ---------- */
+// This function is called once the Google Maps API script has loaded and is ready.
+async function gmapsReady() {
+  // Initialize Google Maps services.
+  geocoder = new google.maps.Geocoder();
+  distSvc = new google.maps.DistanceMatrixService();
+  
+  // Load data from the Excel sheet and build the initial UI.
+  await loadSheet();
 
-  const ac=new google.maps.places.Autocomplete(
-    document.getElementById('homeInput'),{types:['geocode']});
-  ac.addListener('place_changed',()=>{
-    const p=ac.getPlace();
-    homePos = p.geometry ? {lat:p.geometry.location.lat(),
-                            lng:p.geometry.location.lng()} : null;
-    if (!homePos) {
-        // Optionally clear previous results if place is cleared or invalid
-        document.getElementById('nearest').textContent = '';
-        // Potentially reset ETA_FROM_HOME in rows if needed, or rely on filterAndDisplayCells
+  // Initialize Google Places Autocomplete for the home address input field.
+  const autocompleteInput = document.getElementById('homeInput');
+  const ac = new google.maps.places.Autocomplete(autocompleteInput, { types: ['geocode'] });
+
+  // Listen for the 'place_changed' event from the Autocomplete instance.
+  // This event fires when the user selects an address from the Autocomplete suggestions.
+  ac.addListener('place_changed', () => {
+    const place = ac.getPlace(); // Get the PlaceResult object.
+    const wasHomePosSet = !!homePos; // Check if homePos had a value before this change.
+
+    // Update homePos with the new coordinates if a valid place is selected.
+    homePos = place.geometry ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : null;
+
+    // If homePos becomes null (e.g., user cleared the input) AND it was previously set:
+    if (!homePos && wasHomePosSet) {
+      document.getElementById('nearest').textContent = ''; // Clear the "nearest cell" message.
+      
+      // Revert the "DIRECCION" column header back to its original state (ETA from church).
+      const direccionOriginalHeaderKey = 'DIRECCION';
+      const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey);
+      if (direccionColumnIndex !== -1 && table) {
+        const column = table.column(direccionColumnIndex);
+        $(column.header()).html('conducir desde la iglesia'); // Update header text using jQuery.
+      }
+      
+      // Re-render the table and cards. Since homePos is now null,
+      // filterAndDisplayCells will show ETAs from the church.
+      filterAndDisplayCells(); 
     }
+    // If homePos is newly set or changed to another valid location, the 'runSearch' function 
+    // (triggered by button click or Enter key) will handle updating the header and ETAs.
   });
-  document.getElementById('searchBtn').addEventListener('click',runSearch);
 
-  // Add event listener for 'Enter' key on the home input field
-  document.getElementById('homeInput').addEventListener('keypress', function(event) {
-    // Check if the key pressed was 'Enter'
+  // Add event listener to the search button to trigger runSearch on click.
+  document.getElementById('searchBtn').addEventListener('click', runSearch);
+
+  // Add event listener to the home address input field to trigger runSearch on 'Enter' key press.
+  autocompleteInput.addEventListener('keypress', function(event) {
     if (event.key === 'Enter') {
-      event.preventDefault(); // Prevent any default action (like form submission)
-      // Ensure the search button is not disabled before attempting to search
-      // This check might be useful if you have conditions where the button could be disabled
-      // for reasons other than an ongoing search. For now, directly calling runSearch is fine.
-      // if (!document.getElementById('searchBtn').disabled) {
-      //   runSearch();
-      // }
-      runSearch(); // Call the existing search function
+      event.preventDefault(); // Prevent default form submission behavior if any.
+      runSearch(); // Execute the search.
     }
   });
 }
 
-/* ---------- lee Excel, filtra y reemplaza dirección por ETA ---------- */
-async function loadSheet(){
-  try{
-    const wb=XLSX.read(await fetch('celulas.xlsx').then(r=>r.arrayBuffer()),{type:'array'});
-    const sh=wb.Sheets['Consolidado']??wb.Sheets[wb.SheetNames[0]];
-    const arr=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
-    headES  =arr[0].map(h=>String(h).trim());
+/* ---------- LEE EXCEL, FILTRA Y REEMPLAZA DIRECCIÓN POR ETA (READ EXCEL, FILTER, AND REPLACE ADDRESS WITH ETA) ---------- */
+// This function fetches the Excel file, parses its content, calculates initial ETAs from the church, and prepares data.
+async function loadSheet() {
+  try {
+    // Fetch the Excel file.
+    const response = await fetch('celulas.xlsx');
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
-    rows = arr.slice(1)
-             .filter(r=>r.some(x=>x!==''))
-             .map(r=>{
-               const o={}; headES.forEach((h,i)=>o[h]=r[i]); return o;
+    // Get the 'Consolidado' sheet or the first sheet if 'Consolidado' is not found.
+    const sheetName = workbook.Sheets['Consolidado'] ? 'Consolidado' : workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    
+    // Convert sheet data to a JSON array (array of arrays).
+    const sheetDataArray = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    
+    // Extract headers (first row) and trim them.
+    headES = sheetDataArray[0].map(h => String(h).trim());
+
+    // Process data rows.
+    rows = sheetDataArray.slice(1) // Skip header row.
+             .filter(rowArray => rowArray.some(cellValue => cellValue !== '')) // Filter out completely empty rows.
+             .map(rowArray => { // Convert each row array to an object using headers as keys.
+               const rowObject = {};
+               headES.forEach((header, index) => rowObject[header] = rowArray[index]);
+               return rowObject;
              })
-             .filter(o=>{
-               const l=String(o['IDIOMA']).toLowerCase();
-               return l==='español'||l==='bilingüe';
+             .filter(rowObject => { // Filter cells by language ('español' or 'bilingüe').
+               const language = String(rowObject['IDIOMA']).toLowerCase();
+               return language === 'español' || language === 'bilingüe';
              });
 
-    /* ▸ calcular ETA celda → HUB y sustituir dirección */
-    await Promise.all(rows.map(async o=>{
-      o['DIRECCION_RAW'] = o['DIRECCION']; // guarda original
-      const etaHub = await driveMinutes(o['DIRECCION_RAW'], HUB_ADDR);
-      o['ETA_FROM_HUB'] = etaHub; // Store numeric ETA or null
-      o['DIRECCION'] = etaHub != null ? `≈ ${etaHub} min` : '—'; // Default display
-      o['ETA_FROM_HOME'] = null; // Initialize ETA from home
+    // Asynchronously calculate ETA from each cell's address to the church (HUB_ADDR).
+    await Promise.all(rows.map(async (rowObject) => {
+      rowObject['DIRECCION_RAW'] = rowObject['DIRECCION']; // Store the original address.
+      const etaHub = await driveMinutes(rowObject['DIRECCION_RAW'], HUB_ADDR); // Calculate ETA.
+      rowObject['ETA_FROM_HUB'] = etaHub; // Store the numeric ETA from hub (or null).
+      // Set the default display text for the 'DIRECCION' field (ETA from hub).
+      rowObject['DIRECCION'] = etaHub != null ? `≈ ${etaHub} min` : '—'; 
+      rowObject['ETA_FROM_HOME'] = null; // Initialize ETA from home as null.
     }));
 
+    // Once data is processed, build the UI elements (DataTable, cards).
     buildUI();
-  }catch(e){ $('#error').show().text(e); }
+  } catch(e) {
+    // Display any errors encountered during loading/processing.
+    $('#error').show().text("Error cargando los datos de las células: " + e.message);
+    console.error("Error in loadSheet:", e);
+  }
 }
 
-/* ---------- construye DataTable y tarjetas ---------- */
-function buildUI(){
-  [...new Set(rows.map(r=>r['ZONA']).filter(Boolean))].sort()
-    .forEach(z=>$('#zonaSelect').append(`<option value="${z}">${z}</option>`));
+/* ---------- CONSTRUYE DATATABLE Y TARJETAS (BUILD DATATABLE AND CARDS) ---------- */
+// This function initializes the DataTable and sets up dynamic parts of the UI.
+function buildUI() {
+  // Populate the 'Zona' (Zone) filter dropdown with unique, sorted zone values from the data.
+  [...new Set(rows.map(r => r['ZONA']).filter(Boolean))].sort()
+    .forEach(zone => $('#zonaSelect').append(`<option value="${zone}">${zone}</option>`));
 
-  const numIdx=headES.indexOf('#'), zonaIdx=headES.indexOf('ZONA');
+  // Get indices of '#' and 'ZONA' columns for default sorting if they exist.
+  const numIdx = headES.indexOf('#'); 
+  const zonaIdx = headES.indexOf('ZONA'); 
+  // The key for the address column in your data objects, used for initial title setup.
+  const direccionOriginalHeaderKey = 'DIRECCION'; 
 
-  table=$('#tabla').DataTable({
-    columns:headES.map(h=>({title:h,data:h})),
-    order:[[numIdx,'asc'],[zonaIdx,'asc']],
-    pageLength:10
+  // Initialize the DataTable.
+  table = $('#tabla').DataTable({
+    columns: headES.map(originalHeaderName => { // Map Excel headers to DataTable column definitions.
+      let displayTitle = originalHeaderName;
+      // If this is the 'DIRECCION' column, set its initial display title.
+      if (originalHeaderName === direccionOriginalHeaderKey) {
+        displayTitle = 'conducir desde la iglesia'; 
+      }
+      // 'data' property tells DataTables which field in the data object to use for this column.
+      // 'title' property is the text displayed in the column header.
+      return { title: displayTitle, data: originalHeaderName };
+    }),
+    // Default sorting order: by '#' then by 'ZONA', if these columns exist.
+    order: (numIdx !== -1 && zonaIdx !== -1) ? [[numIdx, 'asc'], [zonaIdx, 'asc']] : [], 
+    pageLength: 10 // Number of rows per page.
   });
-  cardsDiv=document.getElementById('cards');
+  // Get the DOM element for rendering cards (for mobile view).
+  cardsDiv = document.getElementById('cards');
   
-  filterAndDisplayCells(); // Initial population of table and cards
+  // Perform initial population of the table and cards.
+  filterAndDisplayCells(); 
 
-  $('#zonaSelect').on('change',function(){
-    // Do not clear #nearest here, user might want to see nearest info while changing zone
-    // $('#nearest').text(''); 
+  // Add event listener to the 'Zona' filter dropdown.
+  // When the selection changes, re-filter and re-display the cells.
+  $('#zonaSelect').on('change', function() {
     filterAndDisplayCells(); 
   });
 }
 
-/* ---------- Prepara datos y actualiza DataTable y Tarjetas ---------- */
+/* ---------- PREPARA DATOS Y ACTUALIZA DATATABLE Y TARJETAS (PREPARE DATA AND UPDATE DATATABLE AND CARDS) ---------- */
+// This function filters rows based on the selected zone and updates the DataTable and cards.
+// It also dynamically sets the 'DIRECCION' field based on whether a home search has been performed.
 function filterAndDisplayCells() {
-  const selectedZone = $('#zonaSelect').val();
+  const selectedZone = $('#zonaSelect').val(); // Get the currently selected zone.
+  // Filter rows: if a zone is selected, use it; otherwise, use all rows.
   let currentFilteredRows = selectedZone ? rows.filter(r => r['ZONA'] === selectedZone) : [...rows]; 
 
+  // Map over the filtered rows to prepare them for display.
   const displayList = currentFilteredRows.map(cell => {
-    const cellForDisplay = {...cell}; // Create a copy for modification
+    const cellForDisplay = {...cell}; // Create a shallow copy to avoid modifying original row objects directly.
 
-    // Check if homePos is set (meaning a search occurred/place selected) AND ETA_FROM_HOME is calculated
+    // If a home address has been searched (homePos is set) AND a valid ETA from home exists for this cell:
     if (homePos && typeof cell.ETA_FROM_HOME === 'number') { 
+      // Set the 'DIRECCION' field to display the ETA from home.
       cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
     } else {
-      // Fallback to HUB ETA text (already set in cell.DIRECCION or derive from ETA_FROM_HUB)
+      // Otherwise, display the ETA from the church (hub).
       cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min` : '—';
     }
     return cellForDisplay;
   });
 
+  // If the DataTable instance exists, clear it and add the new list of cells, then redraw.
   if (table) { 
     table.clear().rows.add(displayList).draw();
   }
+  // If the cards container exists, render the cards for the new list of cells.
   if (cardsDiv) { 
     renderCards(displayList);
   }
 }
 
-
-/* ---------- render Cards (todas las columnas) ---------- */
-function renderCards(list){
-  cardsDiv.innerHTML=list.map(o=>{
-    // Ensure 'DIRECCION' shown in cards is the potentially modified one
-    const lines=headES.map(h=>`<p><strong>${h}:</strong> ${o[h]}</p>`).join('');
+/* ---------- RENDER CARDS (TODAS LAS COLUMNAS) (RENDER CARDS - ALL COLUMNS) ---------- */
+// This function generates HTML for cards (mobile view) based on the provided list of cells.
+function renderCards(list) {
+  // For each cell in the list, create a card with all its data.
+  cardsDiv.innerHTML = list.map(cellObject => {
+    // For each header, create a line: "Header: Value".
+    const lines = headES.map(header => `<p><strong>${header}:</strong> ${cellObject[header]}</p>`).join('');
     return `<div class="card">${lines}</div>`;
   }).join('');
 }
 
-/* ---------- utilidades geocodificación / ETA ---------- */
+/* ---------- UTILIDADES GEOCODIFICACIÓN / ETA (GEOCODING / ETA UTILITIES) ---------- */
+// Helper function to get coordinates ({lat, lng}) for a location input.
+// Input can be an address string or an already formed {lat, lng} object.
+// Uses a cache (geoCache) to store results for address strings.
 async function getCoords(locationInput) {
-  if (typeof locationInput === 'string') {
-    if(geoCache.has(locationInput)) return geoCache.get(locationInput);
-    return new Promise(r=>geocoder.geocode({address:locationInput},(re,st)=>{
-      const loc=st==='OK'?{lat:re[0].geometry.location.lat(),lng:re[0].geometry.location.lng()}:null;
-      geoCache.set(locationInput,loc); r(loc);
-    }));
+  if (typeof locationInput === 'string') { // If input is an address string.
+    if (geoCache.has(locationInput)) return geoCache.get(locationInput); // Check cache first.
+    // If not in cache, use Google's Geocoder.
+    return new Promise(resolve => {
+      geocoder.geocode({ address: locationInput }, (results, status) => {
+        const loc = status === 'OK' ? { lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng() } : null;
+        geoCache.set(locationInput, loc); // Store result (or null) in cache.
+        resolve(loc);
+      });
+    });
   } else if (locationInput && typeof locationInput.lat === 'number' && typeof locationInput.lng === 'number') {
-    return locationInput; // Already {lat, lng}
+    // If input is already a {lat, lng} object, return it directly.
+    return locationInput; 
   }
+  // Log a warning and return null for invalid input types.
   console.warn("Invalid location input for getCoords:", locationInput);
   return null; 
 }
 
-const gc = addr => getCoords(addr); // Keep gc for simplicity if preferred, though getCoords is more descriptive
+// Alias for getCoords, can be used if 'gc' is preferred for brevity.
+const gc = addr => getCoords(addr); 
 
-async function driveMinutes(originInput, destinationInput){
+// Calculates driving time in minutes between an origin and a destination.
+// originInput and destinationInput can be address strings or {lat, lng} objects.
+async function driveMinutes(originInput, destinationInput) {
+  // Get coordinates for origin and destination.
   const oCoords = await getCoords(originInput);
   const dCoords = await getCoords(destinationInput);
-  if(!oCoords || !dCoords) return null;
+  
+  // If coordinates for either could not be found, return null.
+  if (!oCoords || !dCoords) return null;
 
-  return new Promise(r=>distSvc.getDistanceMatrix({
-    origins:[new google.maps.LatLng(oCoords.lat, oCoords.lng)],
-    destinations:[new google.maps.LatLng(dCoords.lat, dCoords.lng)],
-    travelMode:'DRIVING',
-    drivingOptions:{departureTime:new Date()} // Using departureTime for traffic estimation
-  },(m,st)=>{
-    const el=m?.rows[0].elements[0];
-    r(st==='OK'&&el.status==='OK'
-        ? Math.round((el.duration_in_traffic||el.duration).value/60) // Prioritize duration_in_traffic
-        : null);
-  }));
+  // Use Google's Distance Matrix service.
+  return new Promise(resolve => {
+    distSvc.getDistanceMatrix({
+      origins: [new google.maps.LatLng(oCoords.lat, oCoords.lng)],
+      destinations: [new google.maps.LatLng(dCoords.lat, dCoords.lng)],
+      travelMode: 'DRIVING',
+      drivingOptions: { departureTime: new Date() } // Considers current traffic conditions.
+    }, (matrixResult, status) => {
+      const element = matrixResult?.rows[0].elements[0];
+      // If status is OK and element status is OK, extract duration.
+      if (status === 'OK' && element?.status === 'OK') {
+        // Prioritize duration_in_traffic if available, otherwise use standard duration. Convert seconds to minutes.
+        const durationInMinutes = Math.round((element.duration_in_traffic || element.duration).value / 60);
+        resolve(durationInMinutes);
+      } else {
+        resolve(null); // Return null if ETA calculation fails.
+      }
+    });
+  });
 }
 
-/* ---------- búsqueda del usuario ---------- */
-async function runSearch(){
-  const rawHomeAddress = document.getElementById('homeInput').value.trim();
-  const out = document.getElementById('nearest');
-  const btn = document.getElementById('searchBtn');
+/* ---------- BÚSQUEDA DEL USUARIO (USER SEARCH) ---------- */
+// This function is triggered when the user searches for their home address.
+async function runSearch() {
+  const rawHomeAddress = document.getElementById('homeInput').value.trim(); // Get raw address from input.
+  const outNearestDiv = document.getElementById('nearest'); // Div to display nearest cell info.
+  const searchButton = document.getElementById('searchBtn'); // Search button element.
   
+  // Validate input: if address is empty, show message and exit.
   if (!rawHomeAddress) {
-    out.textContent = 'Por favor, ingrese una dirección de casa.';
+    outNearestDiv.textContent = 'Por favor, ingrese una dirección de casa.';
     return;
   }
-  if (!homePos && rawHomeAddress) { // If homePos not set by autocomplete, try to geocode now
+  // If homePos is not yet set (e.g., user typed address and hit Enter without Autocomplete selection),
+  // try to geocode the raw address string now.
+  if (!homePos && rawHomeAddress) { 
       const loc = await getCoords(rawHomeAddress);
-      if (!loc) {
-          out.textContent = 'Error: No se pudo geocodificar la dirección de casa ingresada.';
+      if (!loc) { // If geocoding fails.
+          outNearestDiv.textContent = 'Error: No se pudo geocodificar la dirección de casa ingresada.';
           return;
       }
-      homePos = loc;
+      homePos = loc; // Set global homePos.
   }
-  if (!homePos) { // Still no homePos
-    out.textContent = 'Error: Dirección de casa no válida o no seleccionada.';
+  // If, after all attempts, homePos is still not valid, show error and exit.
+  if (!homePos) { 
+    outNearestDiv.textContent = 'Error: Dirección de casa no válida o no seleccionada.';
     return;
   }
 
-  btn.disabled = true; 
-  out.textContent = 'Buscando células cercanas…';
+  // Disable search button and show "searching" message during processing.
+  searchButton.disabled = true; 
+  outNearestDiv.textContent = 'Buscando células cercanas…';
 
   try {
-    // Calculate ETA from home for ALL cells and store it in the main 'rows' array
-    const promises = rows.map(async (cell) => {
+    // Calculate ETAs from the user's home to ALL cells.
+    // This updates the 'ETA_FROM_HOME' property in the main 'rows' array objects.
+    const promises = rows.map(async (cell) => { 
       const eta = await driveMinutes(homePos, cell['DIRECCION_RAW']);
-      cell.ETA_FROM_HOME = eta; // Update the main rows array
+      cell.ETA_FROM_HOME = eta; 
       return cell; 
     });
-    await Promise.all(promises);
+    await Promise.all(promises); // Wait for all ETA calculations to complete.
 
-    // Create a temporary list with ETAs for sorting
+    // OPTIONAL REFINEMENT IMPLEMENTED: Update "DIRECCION" column header to "conduce desde tu casa"
+    // *after* ETAs from home have been calculated.
+    const direccionOriginalHeaderKey = 'DIRECCION';
+    const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey);
+    if (direccionColumnIndex !== -1 && table) {
+      const column = table.column(direccionColumnIndex);
+      $(column.header()).html('conduce desde tu casa'); 
+    }
+
+    // Create a temporary list of cells (shallow copies) to sort by ETA from home.
     let cellsWithEta = rows.map(cell => ({...cell})); 
-
-    // Sort by ETA_FROM_HOME, nulls (errors in calculation) last
+    // Sort cells: by ETA_FROM_HOME ascending. Cells with null ETA (calculation failed) go to the end.
     cellsWithEta.sort((a, b) => {
       if (a.ETA_FROM_HOME === null && b.ETA_FROM_HOME === null) return 0;
-      if (a.ETA_FROM_HOME === null) return 1;
-      if (b.ETA_FROM_HOME === null) return -1;
-      return a.ETA_FROM_HOME - b.ETA_FROM_HOME;
+      if (a.ETA_FROM_HOME === null) return 1; // 'a' (null) comes after 'b' (not null).
+      if (b.ETA_FROM_HOME === null) return -1; // 'b' (null) comes after 'a' (not null).
+      return a.ETA_FROM_HOME - b.ETA_FROM_HOME; // Standard numeric sort.
     });
 
+    // Get the top 3 nearest cells that have a valid ETA from home.
     const nearestThree = cellsWithEta.filter(c => c.ETA_FROM_HOME !== null).slice(0, 3);
 
-    if (nearestThree.length > 0) {
-      const nearestCell = nearestThree[0];
-      // Corrected line below to use 'MAESTRO' and 'TELEFONO'
-      out.textContent = `La célula más cercana (#${nearestCell['#']}) está a ≈ ${nearestCell.ETA_FROM_HOME} min. ` +
+    if (nearestThree.length > 0) { // If at least one nearby cell is found.
+      const nearestCell = nearestThree[0]; // The absolute nearest one.
+      // Display message about the nearest cell, including teacher's name and phone.
+      // Assumes 'MAESTRO' and 'TELEFONO' are the correct column names in your Excel.
+      outNearestDiv.textContent = `La célula más cercana (#${nearestCell['#']}) está a ≈ ${nearestCell.ETA_FROM_HOME} min. ` +
                         `Maestro/a: ${nearestCell['MAESTRO']}, ` +
                         `Tel: ${nearestCell['TELEFONO']}.`;
       
+      // Prepare these 3 nearest cells for display in table/cards.
+      // Their 'DIRECCION' field will show ETA from home.
       const displayDataNearestThree = nearestThree.map(cell => {
         const displayCell = {...cell};
         displayCell['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
         return displayCell;
       });
 
+      // Update DataTable and cards to show only these 3 nearest cells.
       table.clear().rows.add(displayDataNearestThree).draw();
       renderCards(displayDataNearestThree);
-    } else {
-      out.textContent = 'No se encontraron células cercanas o no se pudo calcular el tiempo de viaje.';
+    } else { // If no cells found or ETAs couldn't be calculated.
+      outNearestDiv.textContent = 'No se encontraron células cercanas o no se pudo calcular el tiempo de viaje.';
     }
 
-  } catch(e) {
-    out.textContent = 'Error durante la búsqueda: ' + e.message;
+  } catch(e) { // Catch any errors during the search process.
+    outNearestDiv.textContent = 'Error durante la búsqueda: ' + e.message;
     console.error("Error in runSearch:", e);
-  } finally {
-    btn.disabled = false;
+  } finally { // Always re-enable the search button.
+    searchButton.disabled = false;
   }
 }
 </script>
