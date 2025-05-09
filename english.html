@@ -175,7 +175,31 @@ let homePos = null;
 // This helps in optimizing API usage (which can be subject to quotas and costs) and can improve the application's performance,
 // especially if the same addresses are frequently processed or looked up.
 const geoCache = new Map();
+// (after const geoCache = new Map();)
 
+// NEW: Map for translating Spanish Excel headers to English for display
+const headerTranslationMap = {
+    '#': '#',
+    'ZONA': 'Zone',
+    'RED': 'Network',
+    'SUPERVISOR': 'Supervisor',
+    'LIDER': 'Leader',
+    'ANFITRION': 'Host',
+    'DIRECCION': 'Address/ETA', // Base translation, though often overridden dynamically
+    'DIA': 'Day',
+    'HORA': 'Time',
+    'IDIOMA': 'Language',
+    'TIPO DE CELULA': 'Cell Type',
+    'STATUS': 'Status',
+    'NOMBRE DEL MAESTRO/A': 'Teacher/Host', // More concise for header
+    'NUMERO DE TELEFONO': 'Phone Number',
+    'ASISTENTES': 'Attendees',
+    'NIÑOS': 'Children',
+    'FECHA DE APERTURA': 'Opening Date',
+    'ASISTENCIA LIDERES': 'Leaders Attended', // Example translation
+    'OBSERVACIONES': 'Observations'
+    // Add any other headers from your Excel file here if not listed
+};
 /* ---------- HELPER FUNCTION TO FORMAT COLUMN TITLES ---------- */
 // This function takes a string 'str' (expected to be a column header or a label)
 // and returns a new string where the first letter is capitalized, and all subsequent letters in the string are converted to lowercase.
@@ -368,7 +392,32 @@ async function loadSheet() {
                                       // This is the value that will be displayed in the UI (table, cards) for these cells.
         }
     });
+    // Inside loadSheet function, after this block:
+    // processedRows.forEach(o => {
+    //     if (String(o['IDIOMA']).toLowerCase() === 'bilingue') {
+    //         o['IDIOMA'] = 'Bi-Lingual';
+    //     }
+    // });
 
+    // NEW: Translate day names in the 'DIA' column to English
+    const dayTranslationMap = {
+        'Lunes': 'Monday',
+        'Martes': 'Tuesday',
+        'Miercoles': 'Wednesday', // Assuming 'Miercoles' (no accent) from your Excel
+        'Jueves': 'Thursday',
+        'Viernes': 'Friday',
+        'Sabado': 'Saturday',   // Assuming 'Sabado' (no accent)
+        'Domingo': 'Sunday'
+    };
+
+    processedRows.forEach(row => {
+        // Check if the row has a 'DIA' property and if that day exists in our map
+        if (row['DIA'] && dayTranslationMap[row['DIA']]) {
+            // Replace the Spanish day name with the English one
+            row['DIA'] = dayTranslationMap[row['DIA']];
+        }
+    });
+    // The rest of the loadSheet function (rows = await Promise.all(...)) continues after this.
     // Step 8: Further process each (now filtered and language-updated) row object asynchronously.
     // This step is primarily to determine its 'EFFECTIVE_ROUTING_ADDRESS' and calculate its initial 'ETA_FROM_HUB'.
     // 'Promise.all(...)' is used because 'driveMinutes' (called inside the map) is an asynchronous function.
@@ -437,16 +486,28 @@ async function loadSheet() {
 //    and display it in both the DataTable and the cards view, applying default filtering (usually "All" zones) and sorting.
 // 5. To set up an event listener for the 'Zone' filter dropdown. When the user changes the selected zone,
 //    this listener will trigger 'filterAndDisplayCells()' to update the displayed data accordingly.
+/* ---------- CONSTRUCCIÓN DE LA INTERFAZ DE USUARIO (UI CONSTRUCTION) ---------- */
+// This function is called once 'loadSheet' has successfully completed its task of loading and processing the initial cell data.
+// Its primary responsibilities are:
+// 1. To populate the 'Zone' filter dropdown menu ('#zonaSelect') with all unique zone names extracted from the cell data.
+// 2. To initialize the DataTables library on the main HTML table ('#tabla'), configuring its columns,
+//    setting the initial sort order, default page length, and other relevant DataTables options.
+//    Crucially, it translates original (Spanish) column headers to English for display using 'headerTranslationMap'
+//    and then formats them using 'formatHeaderTitle'.
+// 3. To get a reference to the 'cardsDiv' DOM element, which will be used for rendering the mobile-friendly card view.
+// 4. To make the initial call to 'filterAndDisplayCells()'. This function will take the fully processed 'rows' data
+//    and display it in both the DataTable and the cards view, applying default filtering (usually "All" zones) and sorting.
+// 5. To set up an event listener for the 'Zone' filter dropdown. When the user changes the selected zone,
+//    this listener will trigger 'filterAndDisplayCells()' to update the displayed data accordingly.
 function buildUI() {
-  // Populate the 'Zone' filter dropdown ('#zonaSelect') with unique, sorted zone names from the 'rows' data.
+  // Populate the 'Zone' filter dropdown ('#zonaSelect').
   // Step 1: 'rows.map(r => r['ZONA'])' creates a new array containing only the 'ZONA' property values from all cell objects in 'rows'.
-  // Step 2: '.filter(Boolean)' removes any 'falsy' values from this array (e.g., null, undefined, empty strings), ensuring only valid zone names are considered.
+  // Step 2: '.filter(Boolean)' removes any 'falsy' values from this array (null, undefined, empty strings), ensuring only valid zone names are considered.
   // Step 3: 'new Set(...)' creates a Set from the array of zone names. A Set automatically stores only unique values, effectively removing any duplicate zone names.
   // Step 4: '[...set]' (spread operator) converts the Set back into an array of unique zone names.
   // Step 5: '.sort()' sorts this array of unique zone names alphabetically.
-  // Step 6: '.forEach(zone => ...)' iterates over each unique, sorted 'zone' name.
-  //         For each 'zone', it creates a new HTML '<option>' element and appends it to the '#zonaSelect' dropdown using jQuery's '.append()'.
-  //         The 'value' attribute of the option is set to the zone name, and the visible text of the option is also the zone name.
+  // Step 6: For each unique 'zone' name, append a new '<option>' element to the '#zonaSelect' dropdown using jQuery's '.append()'.
+  //         The 'value' attribute of the option is set to the zone name, and the visible text is also the zone name.
   [...new Set(rows.map(r => r['ZONA']).filter(Boolean))].sort()
     .forEach(zone => $('#zonaSelect').append(`<option value="${zone}">${zone}</option>`));
 
@@ -456,7 +517,8 @@ function buildUI() {
   const numIdx = headES.indexOf('#'); 
   const zonaIdx = headES.indexOf('ZONA'); 
   // Define the string key that represents the 'DIRECCION' (Address/ETA) column in the data objects (from Excel headers).
-  // This key is used to identify this column specifically when setting up its initial display title in the DataTable.
+  // This key is used to identify this column specifically when setting up its initial display title in the DataTable,
+  // as this column's title is dynamic ("Drive from Church" / "Drive from Home").
   const direccionOriginalHeaderKey = 'DIRECCION'; 
 
   // Initialize the DataTables library on the HTML table element that has the ID 'tabla'.
@@ -467,26 +529,38 @@ function buildUI() {
     // It's an array of objects, where each object corresponds to one column.
     // We generate this array by mapping over 'headES' (the array of original Excel header names).
     columns: headES.map(originalHeaderName => { // For each 'originalHeaderName' from the Excel sheet...
-      let displayTitle = originalHeaderName; // By default, the title displayed in the table header (<th>) for this column will be the 'originalHeaderName'.
-      
-      // Special handling for the display title of the 'DIRECCION' column.
+      let englishDisplayTitle; // Variable to hold the English title that will be displayed for the column header.
+
+      // Special handling for the title of the 'DIRECCION' (Address/ETA) column.
       if (originalHeaderName === direccionOriginalHeaderKey) {
         // If the current header being processed is for the 'DIRECCION' column,
-        // set its initial display title to "Drive from Church". This title will be shown
-        // in the table header before any home address search is performed by the user.
-        displayTitle = 'Drive from Church'; // English title
+        // set its initial English display title specifically to "Drive from Church".
+        // This title will be shown in the table header before any home address search is performed by the user.
+        englishDisplayTitle = 'Drive from Church'; 
+      } else {
+        // For all other columns (not 'DIRECCION'), look up the English translation
+        // in the 'headerTranslationMap' using the 'originalHeaderName' (which is in Spanish from Excel) as the key.
+        // If a translation exists for 'originalHeaderName' in the map, use that English translation.
+        // Otherwise (if the 'originalHeaderName' is not found as a key in 'headerTranslationMap'),
+        // fallback to using the 'originalHeaderName' itself as the title (it will then just be formatted).
+        englishDisplayTitle = headerTranslationMap[originalHeaderName] || originalHeaderName; 
       }
-      // Format the 'displayTitle' (whether it's the original header name or the special "Drive from Church" title)
+      
+      // Format the determined 'englishDisplayTitle' (whether it's the special title for 'DIRECCION',
+      // a translated title, or the original header if no translation was found)
       // using the 'formatHeaderTitle' helper function. This ensures consistent capitalization
       // (first letter of the string uppercase, rest of the string lowercase) for all column headers.
-      displayTitle = formatHeaderTitle(displayTitle); 
+      const finalDisplayTitle = formatHeaderTitle(englishDisplayTitle); 
       
       // Return the configuration object for this specific column:
-      // - 'title': This is the text that will actually be displayed in the <th> element (header cell) of this column in the rendered table.
-      // - 'data': This tells DataTables which property name to look for in the row data objects (those in the 'rows' array,
-      //   and subsequently in the 'displayList' passed to DataTables) to populate the cells (<td>) in this column.
-      //   It's crucial that 'data' matches an actual key in the data objects being supplied to the table.
-      return { title: displayTitle, data: originalHeaderName };
+      // - 'title': This is the text ('finalDisplayTitle') that will actually be displayed in the <th> (header cell)
+      //   of this column in the rendered table.
+      // - 'data': This tells DataTables which property name to look for in the row data objects
+      //   (those in the 'rows' array, and subsequently in the 'displayList' passed to DataTables)
+      //   to populate the cells (<td>) in this column. It's crucial that 'data' uses the 'originalHeaderName'
+      //   (e.g., 'ZONA', 'DIA' - the Spanish keys from Excel), because the data objects in 'rows'
+      //   are keyed with these original Spanish headers. Even though the title is English, the data binding uses the original keys.
+      return { title: finalDisplayTitle, data: originalHeaderName };
     }),
     // 'order': This option sets the initial sorting order for the table when it first loads.
     // It's an array of arrays. Each inner array specifies a column to sort by and the direction: [columnIndex, sortDirection ('asc' or 'desc')].
@@ -494,42 +568,42 @@ function buildUI() {
     // the table will be sorted first by the '#' column in ascending ('asc') order,
     // and then, for rows that have the same '#' value, it will be secondarily sorted by the 'ZONA' column, also in ascending order.
     // If these key columns for initial sorting are not found (e.g., headers are different in Excel), an empty array '[]' is passed,
-    // meaning DataTables will not apply a specific initial sort order based on this setting (it might then use the natural order of the data as supplied, or its own default).
+    // meaning DataTables will not apply a specific initial sort order based on this setting (it might then use the natural order of the data as supplied).
     order: (numIdx !== -1 && zonaIdx !== -1) ? [[numIdx, 'asc'], [zonaIdx, 'asc']] : [], 
     pageLength: 10 // 'pageLength': Sets the default number of rows to display per page when DataTables pagination is enabled.
   });
+
   // Get a reference to the HTML <div> element with the ID 'cards'.
-  // This div will serve as the container for displaying cell group information in a card-based format,
-  // which is primarily used for a more responsive and user-friendly layout on mobile devices.
+  // This div will be used as the container for displaying cell information in a card-based format,
+  // which is primarily intended for a more responsive and user-friendly layout on mobile devices.
   cardsDiv = document.getElementById('cards');
   
   // Perform the initial population of the DataTable and the cards view with the processed cell data.
   // 'filterAndDisplayCells' is responsible for taking the data from the global 'rows' array,
   // preparing it for display (which includes setting the correct initial string for the 'DIRECCION' column,
-  // e.g., "Planta baja..." for La Cosecha, or ETA from Hub for others), and then updating both the DataTable and the cards.
-  // Since 'homePos' is null at this stage, no sorting by ETA from home will occur yet.
+  // e.g., "Church main hall..." for La Cosecha, or ETA from Hub for others, and handling Zoom cells),
+  // and then updating both the DataTable and the cards.
+  // Since 'homePos' is null at this stage, no sorting by ETA from home will occur yet; the table's default sort will apply.
   filterAndDisplayCells(); 
 
   // Add an event listener to the 'Zone' filter dropdown ('#zonaSelect').
   // The 'change' event is the standard HTML event that fires when the selected value of a <select> element
-  // has been changed by the user and that change is committed (e.g., the user clicks a new option, or the dropdown loses focus after a change).
+  // has been changed by the user and that selection is committed.
   $('#zonaSelect').on('change', function() {
     // When the user changes the selected zone in the dropdown:
     // Call the 'filterAndDisplayCells()' function. This function will:
     // 1. Get the newly selected zone value from the dropdown.
-    // 2. Filter the main 'rows' array to get only the cells belonging to this new zone (or all cells if "— All —" is selected).
-    // 3. If 'homePos' is currently set (meaning a home address search has been performed), it will sort these filtered cells by their 'ETA_FROM_HOME'.
-    // 4. It will then prepare each of these cells for display by correctly formatting their 'DIRECCION' property string (based on home ETAs, hub ETAs, or special texts).
-    // 5. Finally, it will update both the DataTable and the cards view to show this new set of filtered (and possibly sorted) data.
-    // IMPORTANT NOTE on re-selecting "— All —": If the "— All —" option (value="") was already selected, and the user
-    // clicks on "— All —" again, the 'change' event will typically NOT fire because the actual value of the select element
-    // has not changed from its previous state. This means 'filterAndDisplayCells()' would not be called in that specific scenario.
-    // To refresh the "— All —" view to show all cells after 'runSearch()' has displayed a subset (and "— All —" was already active),
-    // the user would need to first select a different zone, and THEN select "— All —" again to trigger the 'change' event.
+    // 2. Filter the main 'rows' array based on this zone (or get all if "— All —" is selected).
+    // 3. If 'homePos' is currently set (meaning a home address search has been performed), it will sort the filtered results by 'ETA_FROM_HOME'.
+    // 4. It will then prepare each of these cells for display by correctly formatting their 'DIRECCION' property string.
+    // 5. Finally, it will update both the DataTable and the cards view with the new, filtered (and possibly sorted) data.
+    // Note on re-selecting "— All —": If "— All —" was already selected (e.g., after runSearch showed a subset),
+    // and the user clicks on "— All —" again, the 'change' event will *not* fire because the select element's value didn't change.
+    // To refresh the "— All —" view in such a scenario to show all cells, the user would need to first select a different zone,
+    // and then select "— All —" again to trigger this 'change' event.
     filterAndDisplayCells(); 
   });
 }
-
 /* ---------- FILTRADO Y VISUALIZACIÓN DE CÉLULAS (CELL FILTERING AND DISPLAY) ---------- */
 // This function is a core part of the application's dynamic behavior. It is responsible for:
 // 1. Determining the current set of cell groups to display based on the selected 'Zone' filter from the '#zonaSelect' dropdown.
@@ -673,7 +747,8 @@ function renderCards(list) {
   // The 'list' argument contains an array of 'cellObject' items. Each 'cellObject' represents one cell group.
   // Crucially, the 'DIRECCION' property of these 'cellObject's has already been formatted
   // to the correct display string (e.g., an ETA, "Online via Zoom", "Church main hall...", etc.) by the calling function.
-  // Other properties (like '#', 'ZONA', 'LIDER', 'IDIOMA', etc.) are also present as per the Excel data.
+  // Other properties (like '#', 'ZONA', 'LIDER', 'IDIOMA', etc.) are also present as per the Excel data,
+  // with 'IDIOMA' being "Bi-Lingual" if it was originally "Bilingue", and 'DIA' translated to English.
 
   // The function will generate an HTML string for each card and then join them all together.
   // This final combined HTML string will be set as the 'innerHTML' of the 'cardsDiv' element,
@@ -682,29 +757,40 @@ function renderCards(list) {
                                                // The '.map()' method will create a new array where each element
                                                // is the HTML string for one card.
     // For each 'cellObject', construct the HTML string for its corresponding card.
-    // This involves iterating over 'headES' (the array of original Excel header names, like '#', 'ZONA', 'LIDER', 'DIRECCION').
-    // For each header, a line of text (a <p> element) will be created showing "HeaderName: Value".
-    const lines = headES.map(header => {
-      // Format the 'header' string (e.g., "ZONA" becomes "Zone", "NOMBRE DEL MAESTRO/A" becomes "Name of teacher/host")
-      // using the 'formatHeaderTitle' helper function. This formatted header will be used as the label in the card.
-      const displayHeader = formatHeaderTitle(header);
-      // Create a line of text HTML in the format "<p><strong>FormattedLabel:</strong> CellValue</p>".
-      // 'cellObject[header]' accesses the value of the property corresponding to the original 'header' name in the 'cellObject'.
-      // For example, if 'header' is "ZONA", 'cellObject[header]' will be the zone value for that cell.
-      // If 'header' is "DIRECCION", 'cellObject[header]' will contain the string that was already formatted for display
-      // (e.g., the ETA, or "Online via Zoom", etc.) by 'filterAndDisplayCells' or 'runSearch'.
-      return `<p><strong>${displayHeader}:</strong> ${cellObject[header]}</p>`;
+    // This involves iterating over 'headES' (the array of original header names from the Excel file,
+    // e.g., '#', 'ZONA', 'LIDER', 'DIRECCION', which are still in their original language, likely Spanish).
+    // For each 'headerKeyFromExcel' in 'headES', a line of information (Label: Value) will be created for the card.
+    const lines = headES.map(headerKeyFromExcel => { 
+      // Get the English translation for the label to be displayed in the card.
+      // It looks up the 'headerKeyFromExcel' (e.g., 'ZONA') in the 'headerTranslationMap'.
+      // If a translation exists (e.g., 'headerTranslationMap['ZONA']' is "Zone"), 'englishLabel' will be the English version.
+      // If no translation is found in the map for 'headerKeyFromExcel', it defaults to using the 'headerKeyFromExcel' itself as the label.
+      const englishLabel = headerTranslationMap[headerKeyFromExcel] || headerKeyFromExcel;
+      
+      // Format the 'englishLabel' (which is now the intended English label text)
+      // using the 'formatHeaderTitle' helper function. This ensures consistent capitalization
+      // (e.g., "Zone", "Cell type", "Teacher/host").
+      const displayLabel = formatHeaderTitle(englishLabel);
+      
+      // Create a paragraph element (<p>) for this piece of information.
+      // The label (e.g., "Zone:") is made bold using <strong>.
+      // 'cellObject[headerKeyFromExcel]' accesses the actual data value for this header from the current 'cellObject'.
+      // For example, if 'headerKeyFromExcel' is "ZONA", 'cellObject[headerKeyFromExcel]' will be the zone value for that cell (e.g., "Hempstead").
+      // If 'headerKeyFromExcel' is "DIRECCION", 'cellObject[headerKeyFromExcel]' will contain the string that was already formatted
+      // for display (e.g., the ETA like "≈ 10 min", or "Online via Zoom", etc.) by 'filterAndDisplayCells' or 'runSearch'.
+      // If 'headerKeyFromExcel' is "IDIOMA", 'cellObject[headerKeyFromExcel]' will be "English" or "Bi-Lingual".
+      // If 'headerKeyFromExcel' is "DIA", 'cellObject[headerKeyFromExcel]' will be the English day name.
+      return `<p><strong>${displayLabel}:</strong> ${cellObject[headerKeyFromExcel]}</p>`;
     }).join(''); // Join all the generated <p> lines for this card into a single HTML string.
-    
-    // Wrap all the generated lines (which represent the content of one cell group) in a 'div'
-    // element with the class 'card'. This allows the CSS styles defined for '.card' to be applied.
+
+    // Wrap the 'lines' (all the <p> elements for this cell group's data) in a <div>
+    // with the class 'card'. This allows the CSS styles defined for '.card' to be applied to each card.
     return `<div class="card">${lines}</div>`;
   }).join(''); // Join the HTML strings of all individual cards into one single, large HTML string.
                // This complete HTML string is then assigned to the 'innerHTML' property of 'cardsDiv'.
-               // This causes the browser to parse this HTML and render the cards in the 'cardsDiv' container,
-               // replacing any content that was previously there.
+               // This causes the browser to parse this HTML and render the cards within the 'cardsDiv' container,
+               // replacing any content that 'cardsDiv' might have had previously.
 }
-
 /* ---------- UTILIDADES DE GEOCODIFICACIÓN Y ETA (GEOCODING AND ETA UTILITIES) ---------- */
 // Asynchronous helper function ('async') designed to obtain geographic coordinates (an object with 'lat' and 'lng' properties)
 // for a given 'locationInput'. This function is essential for converting human-readable addresses into points on a map.
