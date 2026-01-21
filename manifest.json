@@ -1,0 +1,15 @@
+{
+    "name": "Growth Group Finder",
+    "short_name": "GroupFinder",
+    "start_url": "english.html",
+    "display": "standalone",
+    "background_color": "#fafafa",
+    "theme_color": "#2d57a3",
+    "icons": [
+        {
+            "src": "icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

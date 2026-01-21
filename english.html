@@ -6,6 +6,10 @@
     <title>Growth Cells | Zone</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    <meta name="theme-color" content="#2d57a3">
     <style>
         /* -------- Estilos CSS (Restored from index.html) -------- */
         body {
@@ -181,8 +185,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         /* ==========================================================================
-           JavaScript Logic - English V6 (Translations + Strict Filter + Formatting)
+           JavaScript Logic - English V7 (PWA + Translations + Filters + Formatting)
            ========================================================================== */
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered', reg))
+                    .catch(err => console.log('Service Worker registration failed', err));
+            });
+        }
 
         const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
         let headES = [];
@@ -214,24 +227,20 @@
             'domingo': 'Sunday'
         };
 
-        // Helper to translate specific cell values
         function translateValue(key, value) {
             if (!value || typeof value !== 'string') return value;
             const lowerVal = value.trim().toLowerCase();
 
-            // Translate Days
             if (key === 'DIA' && dayTranslationMap[lowerVal]) {
                 return dayTranslationMap[lowerVal];
             }
 
-            // Translate Group Type (if needed)
             if (key === 'TIPO DE CELULA') {
                 if (lowerVal === 'presencial') return 'In-Person';
                 if (lowerVal === 'hibrido' || lowerVal === 'híbrido') return 'Hybrid';
                 if (lowerVal === 'virtual' || lowerVal === 'zoom') return 'Virtual (Zoom)';
             }
 
-            // Translate Status (if needed)
             if (key === 'STATUS') {
                 if (lowerVal === 'activo' || lowerVal === 'activa') return 'Active';
                 if (lowerVal === 'inactivo' || lowerVal === 'inactiva') return 'Inactive';
@@ -304,11 +313,9 @@
                     rows = dataRows.map(r => {
                         let obj = {};
                         headES.forEach((k, i) => {
-                            // Apply translations during object creation
                             obj[k] = translateValue(k, r[i]);
                         });
 
-                        // --- LANGUAGE FILTER ---
                         let lang = (obj['IDIOMA'] || '').trim().toLowerCase();
                         if (lang === 'bilingue' || lang === 'bilingüe' || lang === 'bilingual') {
                             obj['IDIOMA'] = 'Bilingual';
@@ -322,7 +329,6 @@
                         if (lang !== 'english' && lang !== 'bilingual') {
                             return null;
                         }
-                        // -----------------------
 
                         obj.DIRECCION_FROM_EXCEL = obj.DIRECCION;
                         if (obj.ZONA && obj.ZONA.toLowerCase() === 'la cosecha') {
