@@ -2,11 +2,12 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8" />
     <title>Growth Cells | Zone</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" />
     <style>
+        /* -------- Estilos CSS (Restored from index.html) -------- */
         body {
             font-family: system-ui, Arial, sans-serif;
             margin: 0;
@@ -39,75 +40,97 @@
         }
 
         #homeInput {
-            flex: 10;
-            min-width: 200px
+            min-width: 260px;
+            flex: 1 1 260px
+        }
+
+        #homeInput::placeholder {
+            color: #999
         }
 
         #searchBtn {
-            padding: .35rem 1rem;
+            padding: .35rem .9rem;
             font-size: 1rem;
-            background-color: #28a745;
+            border: 1px solid #2d57a3;
+            background: #2d57a3;
             color: #fff;
-            border: none;
             border-radius: 4px;
             cursor: pointer
         }
 
+        #searchBtn:disabled {
+            opacity: .5;
+            cursor: not-allowed
+        }
+
         #searchBtn:hover {
-            background-color: #218838
+            background-color: #214e96;
         }
 
-        #nearest {
-            font-weight: 700;
-            color: #28a745;
-            margin: 0 .5rem
-        }
-
-        #map {
-            height: 400px;
-            width: 90%;
-            margin: 1rem auto;
-            background: #eee;
-            border: 1px solid #ddd;
-            display: none
-        }
-
-        #tabla-container {
-            max-width: 1200px;
-            margin: 1rem auto;
-            padding: 0 1rem;
-            overflow-x: auto
+        .table-wrapper {
+            height: 65vh;
+            overflow: auto;
+            padding: 0 2rem 1.5rem
         }
 
         table.dataTable {
+            border: 2px solid #13284b;
+            border-collapse: collapse;
             width: 100%;
-            border-collapse: collapse
+            table-layout: fixed
+        }
+
+        table.dataTable thead th {
+            background: #2d57a3;
+            color: #fff;
+            border: 1px solid #13284b;
+            font-weight: 700;
+            text-align: center
+        }
+
+        table.dataTable td {
+            border: 1px solid #ccc;
+            padding: 6px 4px;
+            word-wrap: break-word
+        }
+
+        table.dataTable tbody td:nth-child(1) {
+            background: #eee;
+            font-weight: 700;
+            text-align: center
+        }
+
+        table.dataTable tbody tr:nth-child(even) td {
+            background: #f8f8f8
+        }
+
+        .cards {
+            display: none;
+            padding: 0 1rem 2rem;
+            overflow: auto;
+            height: 65vh
         }
 
         .card {
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            padding: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
             margin-bottom: 1rem;
-            border: 1px solid #eee
+            padding: 1rem;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .05)
         }
 
         .card p {
-            margin: .25rem 0
+            margin: .25rem 0;
+            font-size: .95rem
         }
 
-        #cards {
-            display: none;
-            margin: 1rem 2rem
-        }
-
-        @media(max-width:768px) {
-            #tabla-container {
+        @media(max-width:900px) {
+            .table-wrapper {
                 display: none
             }
 
-            #cards {
+            .cards {
                 display: block
             }
 
@@ -115,27 +138,52 @@
                 margin: 1rem
             }
         }
+
+        #nearest {
+            margin: .5rem 2rem 0;
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        #error {
+            color: #c00;
+            margin: 1rem 2rem 0;
+            font-weight: 700
+        }
     </style>
 </head>
 
 <body>
-    <header><img src="english_header.svg" alt="Banner" class="banner"></header>
-    <div class="controls"><select id="zonaSelect">
-            <option value="">All Zones</option>
-        </select><input type="text" id="homeInput" placeholder="Enter your address...">
-        <div id="nearest"></div><button id="searchBtn">Search</button>
+    <header>
+        <!-- Assuming english_header.svg exists or user wants original? user provided english_header.svg in v4. I will use that. -->
+        <img src="english_header.svg" class="banner" alt="Growth Cells Banner">
+    </header>
+
+    <div class="controls">
+        <label for="zonaSelect"><strong>Zone:</strong></label>
+        <select id="zonaSelect">
+            <option value="">— All —</option>
+        </select>
+        <label for="homeInput" class="addr-label">Find nearest group:</label>
+        <input id="homeInput" type="text" placeholder="Enter your address..." />
+        <button id="searchBtn">Search</button>
     </div>
-    <div id="map"></div>
-    <div id="cards"></div>
-    <div id="tabla-container">
-        <table id="tabla" class="display" style="width:100%"></table>
+
+    <div id="nearest"></div>
+
+    <!-- Restored table wrapper structure -->
+    <div class="table-wrapper">
+        <table id="tabla" class="display"></table>
     </div>
+    <div id="cards" class="cards"></div>
+    <div id="error" hidden></div>
+
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         /* ==========================================================================
-           JavaScript Logic for Cell Finder Application (English Version - Fixed V4)
+           JavaScript Logic - English V5 (Restored Formatting + Strict Language Filter)
            ========================================================================== */
 
         const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
@@ -147,6 +195,7 @@
         let rows = [];
         let table;
 
+        // Translation Map
         const headerTranslationMap = {
             '#': '#', 'ZONA': 'Zone', 'RED': 'Network', 'DISTRITO': 'District', 'CELULA': 'Group',
             'SUPERVISOR': 'Supervisor', 'LIDER': 'Leader', 'ANFITRION': 'Host', 'DIRECCION': 'Address/ETA',
@@ -194,7 +243,7 @@
                 }
             });
 
-            // Since map connects, try valid ETAs if rows are ready
+            // Sync calc if rows ready
             if (rows.length > 0) {
                 calcETAsFromHub();
             }
@@ -208,7 +257,7 @@
             }
         }
 
-        // Called immediately
+        // Called immediately (Decoupled Loading)
         function loadSheet() {
             fetch('celulas.xlsx')
                 .then(r => r.arrayBuffer())
@@ -220,9 +269,30 @@
                     headES = json[0];
                     const dataRows = json.slice(1);
 
+                    // Process and Filter Rows
                     rows = dataRows.map(r => {
                         let obj = {};
                         headES.forEach((k, i) => { obj[k] = r[i]; });
+
+                        // --- LANGUAGE FILTER & NORMALIZATION ---
+                        let lang = (obj['IDIOMA'] || '').trim().toLowerCase();
+                        // Normalize Bilingual
+                        if (lang === 'bilingue' || lang === 'bilingüe' || lang === 'bilingual') {
+                            obj['IDIOMA'] = 'Bilingual';
+                            lang = 'bilingual';
+                        }
+                        // Normalize English
+                        if (lang === 'english' || lang === 'ingles' || lang === 'inglés') {
+                            obj['IDIOMA'] = 'English';
+                            lang = 'english';
+                        }
+
+                        // Strict Filter: Only English or Bilingual
+                        if (lang !== 'english' && lang !== 'bilingual') {
+                            return null; // Exclude this row
+                        }
+                        // ---------------------------------------
+
                         obj.DIRECCION_FROM_EXCEL = obj.DIRECCION;
                         if (obj.ZONA && obj.ZONA.toLowerCase() === 'la cosecha') {
                             obj.EFFECTIVE_ROUTING_ADDRESS = HUB_ADDR;
@@ -232,16 +302,18 @@
                         obj.ETA_FROM_HUB = null;
                         obj.ETA_FROM_HOME = null;
                         return obj;
-                    });
+                    }).filter(r => r !== null); // Remove nulls (filtered out rows)
 
-                    // Build logic regardless of Map status
                     buildUI();
                     filterAndDisplayCells();
 
-                    // If Map is already ready, calculate
                     if (distSvc) {
                         calcETAsFromHub();
                     }
+                })
+                .catch(err => {
+                    document.getElementById('error').textContent = "Error loading data: " + err.message;
+                    document.getElementById('error').hidden = false;
                 });
         }
         loadSheet();
@@ -271,7 +343,6 @@
                                         row.ETA_FROM_HUB = Math.round(element.duration.value / 60);
                                     }
                                 });
-                                // Refresh UI with new ETAs
                                 filterAndDisplayCells();
                             }
                             resolve();
@@ -287,7 +358,7 @@
             rows.forEach(r => { if (r.ZONA) zoneSet.add(r.ZONA); });
             const sel = document.getElementById('zonaSelect');
             if (sel) {
-                sel.innerHTML = '<option value="">All Zones</option>';
+                sel.innerHTML = '<option value="">— All —</option>';
                 Array.from(zoneSet).sort().forEach(z => {
                     const op = document.createElement('option');
                     op.value = z;
@@ -306,45 +377,43 @@
                     title: title,
                     data: key,
                     visible: (key !== 'LINK' && key !== 'STATUS'),
-                    defaultContent: ""
+                    defaultContent: "" // Fix for missing data
                 };
             });
 
+            // Initialize DataTable with original config
             table = $('#tabla').DataTable({
                 data: [],
                 columns: columns,
-                paging: false,
-                info: false,
-                searching: false
+                pageLength: 10,  // Restored pagination
+                ordering: true,  // Enabled ordering
+                searching: true, // Enabled searching (default in older setup if not disabled)
+                info: true       // Enabled info
+                // Removed 'paging: false'
             });
         }
 
         function filterAndDisplayCells() {
-            const zoneVal = document.getElementById('zonaSelect').value.toLowerCase();
+            const zoneVal = document.getElementById('zonaSelect').value;
 
+            // Note: index.html check was strict match. v4 was toLowerCase.
+            // Let's stick closer to index.html logic but keep it robust
             let currentFilteredRows = rows.filter(r => {
-                if (zoneVal && (!r.ZONA || r.ZONA.toLowerCase() !== zoneVal)) return false;
+                if (zoneVal && r.ZONA !== zoneVal) return false;
                 return true;
             });
 
-            // Sorting logic (unchanged)
             if (homePos) {
                 currentFilteredRows.sort((a, b) => {
                     if (a.ETA_FROM_HOME == null) return 1;
                     if (b.ETA_FROM_HOME == null) return -1;
                     return a.ETA_FROM_HOME - b.ETA_FROM_HOME;
                 });
-            } else {
-                currentFilteredRows.sort((a, b) => {
-                    if (a.ETA_FROM_HUB == null) return 1;
-                    if (b.ETA_FROM_HUB == null) return -1;
-                    return a.ETA_FROM_HUB - b.ETA_FROM_HUB;
-                });
             }
+            // If not homePos, DataTable handles sorting or default.
 
             const displayList = currentFilteredRows.map(cell => {
                 let cellForDisplay = { ...cell };
-
                 const lowerAddr = (cell.DIRECCION_FROM_EXCEL || cell.DIRECCION || '').toLowerCase();
                 const lowerZone = (cell.ZONA || '').toLowerCase();
 
@@ -354,7 +423,7 @@
                     cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
                 } else {
                     if (lowerZone === 'la cosecha') {
-                        cellForDisplay['DIRECCION'] = 'Church main hall (general meeting)';
+                        cellForDisplay['DIRECCION'] = 'Church main hall';
                     } else {
                         cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min from Church` : (cell.DIRECCION || '—');
                     }
@@ -406,7 +475,6 @@
             for (let i = 0; i < targets.length; i += chunkSize) {
                 const chunk = targets.slice(i, i + chunkSize);
                 const destConnectors = chunk.map(r => r.EFFECTIVE_ROUTING_ADDRESS);
-
                 try {
                     await new Promise(resolve => {
                         distSvc.getDistanceMatrix({
