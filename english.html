@@ -155,7 +155,6 @@
 
 <body>
     <header>
-        <!-- Assuming english_header.svg exists or user wants original? user provided english_header.svg in v4. I will use that. -->
         <img src="english_header.svg" class="banner" alt="Growth Cells Banner">
     </header>
 
@@ -171,7 +170,6 @@
 
     <div id="nearest"></div>
 
-    <!-- Restored table wrapper structure -->
     <div class="table-wrapper">
         <table id="tabla" class="display"></table>
     </div>
@@ -183,7 +181,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         /* ==========================================================================
-           JavaScript Logic - English V5 (Restored Formatting + Strict Language Filter)
+           JavaScript Logic - English V6 (Translations + Strict Filter + Formatting)
            ========================================================================== */
 
         const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
@@ -195,7 +193,7 @@
         let rows = [];
         let table;
 
-        // Translation Map
+        // --- TRANSLATION MAPS ---
         const headerTranslationMap = {
             '#': '#', 'ZONA': 'Zone', 'RED': 'Network', 'DISTRITO': 'District', 'CELULA': 'Group',
             'SUPERVISOR': 'Supervisor', 'LIDER': 'Leader', 'ANFITRION': 'Host', 'DIRECCION': 'Address/ETA',
@@ -205,6 +203,42 @@
             'TELEFONO': 'Phone', 'LINK': 'Link', 'ASISTENTES': 'Attendees', 'ASISTENTE': 'Assistant', 'NIÑOS': 'Children',
             'FECHA DE APERTURA': 'Opening Date', 'ASISTENCIA LIDERES': 'Leaders Attended', 'OBSERVACIONES': 'Observations'
         };
+
+        const dayTranslationMap = {
+            'lunes': 'Monday',
+            'martes': 'Tuesday',
+            'miercoles': 'Wednesday', 'miércoles': 'Wednesday',
+            'jueves': 'Thursday',
+            'viernes': 'Friday',
+            'sabado': 'Saturday', 'sábado': 'Saturday',
+            'domingo': 'Sunday'
+        };
+
+        // Helper to translate specific cell values
+        function translateValue(key, value) {
+            if (!value || typeof value !== 'string') return value;
+            const lowerVal = value.trim().toLowerCase();
+
+            // Translate Days
+            if (key === 'DIA' && dayTranslationMap[lowerVal]) {
+                return dayTranslationMap[lowerVal];
+            }
+
+            // Translate Group Type (if needed)
+            if (key === 'TIPO DE CELULA') {
+                if (lowerVal === 'presencial') return 'In-Person';
+                if (lowerVal === 'hibrido' || lowerVal === 'híbrido') return 'Hybrid';
+                if (lowerVal === 'virtual' || lowerVal === 'zoom') return 'Virtual (Zoom)';
+            }
+
+            // Translate Status (if needed)
+            if (key === 'STATUS') {
+                if (lowerVal === 'activo' || lowerVal === 'activa') return 'Active';
+                if (lowerVal === 'inactivo' || lowerVal === 'inactiva') return 'Inactive';
+            }
+
+            return value;
+        }
 
         function formatHeaderTitle(str) {
             if (!str || typeof str !== 'string') return '';
@@ -243,7 +277,6 @@
                 }
             });
 
-            // Sync calc if rows ready
             if (rows.length > 0) {
                 calcETAsFromHub();
             }
@@ -257,7 +290,6 @@
             }
         }
 
-        // Called immediately (Decoupled Loading)
         function loadSheet() {
             fetch('celulas.xlsx')
                 .then(r => r.arrayBuffer())
@@ -269,29 +301,28 @@
                     headES = json[0];
                     const dataRows = json.slice(1);
 
-                    // Process and Filter Rows
                     rows = dataRows.map(r => {
                         let obj = {};
-                        headES.forEach((k, i) => { obj[k] = r[i]; });
+                        headES.forEach((k, i) => {
+                            // Apply translations during object creation
+                            obj[k] = translateValue(k, r[i]);
+                        });
 
-                        // --- LANGUAGE FILTER & NORMALIZATION ---
+                        // --- LANGUAGE FILTER ---
                         let lang = (obj['IDIOMA'] || '').trim().toLowerCase();
-                        // Normalize Bilingual
                         if (lang === 'bilingue' || lang === 'bilingüe' || lang === 'bilingual') {
                             obj['IDIOMA'] = 'Bilingual';
                             lang = 'bilingual';
                         }
-                        // Normalize English
                         if (lang === 'english' || lang === 'ingles' || lang === 'inglés') {
                             obj['IDIOMA'] = 'English';
                             lang = 'english';
                         }
 
-                        // Strict Filter: Only English or Bilingual
                         if (lang !== 'english' && lang !== 'bilingual') {
-                            return null; // Exclude this row
+                            return null;
                         }
-                        // ---------------------------------------
+                        // -----------------------
 
                         obj.DIRECCION_FROM_EXCEL = obj.DIRECCION;
                         if (obj.ZONA && obj.ZONA.toLowerCase() === 'la cosecha') {
@@ -302,7 +333,7 @@
                         obj.ETA_FROM_HUB = null;
                         obj.ETA_FROM_HOME = null;
                         return obj;
-                    }).filter(r => r !== null); // Remove nulls (filtered out rows)
+                    }).filter(r => r !== null);
 
                     buildUI();
                     filterAndDisplayCells();
@@ -377,27 +408,23 @@
                     title: title,
                     data: key,
                     visible: (key !== 'LINK' && key !== 'STATUS'),
-                    defaultContent: "" // Fix for missing data
+                    defaultContent: ""
                 };
             });
 
-            // Initialize DataTable with original config
             table = $('#tabla').DataTable({
                 data: [],
                 columns: columns,
-                pageLength: 10,  // Restored pagination
-                ordering: true,  // Enabled ordering
-                searching: true, // Enabled searching (default in older setup if not disabled)
-                info: true       // Enabled info
-                // Removed 'paging: false'
+                pageLength: 10,
+                ordering: true,
+                searching: true,
+                info: true
             });
         }
 
         function filterAndDisplayCells() {
             const zoneVal = document.getElementById('zonaSelect').value;
 
-            // Note: index.html check was strict match. v4 was toLowerCase.
-            // Let's stick closer to index.html logic but keep it robust
             let currentFilteredRows = rows.filter(r => {
                 if (zoneVal && r.ZONA !== zoneVal) return false;
                 return true;
@@ -410,7 +437,6 @@
                     return a.ETA_FROM_HOME - b.ETA_FROM_HOME;
                 });
             }
-            // If not homePos, DataTable handles sorting or default.
 
             const displayList = currentFilteredRows.map(cell => {
                 let cellForDisplay = { ...cell };
