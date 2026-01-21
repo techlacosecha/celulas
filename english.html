@@ -135,7 +135,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         /* ==========================================================================
-           JavaScript Logic for Cell Finder Application (English Version - Fixed V3)
+           JavaScript Logic for Cell Finder Application (English Version - Fixed V4)
            ========================================================================== */
 
         const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
@@ -165,7 +165,6 @@
         async function gmapsReady() {
             geocoder = new google.maps.Geocoder();
             distSvc = new google.maps.DistanceMatrixService();
-            await loadSheet();
 
             const autocompleteInput = document.getElementById('homeInput');
             const ac = new google.maps.places.Autocomplete(autocompleteInput, { types: ['geocode'] });
@@ -194,6 +193,11 @@
                     filterAndDisplayCells();
                 }
             });
+
+            // Since map connects, try valid ETAs if rows are ready
+            if (rows.length > 0) {
+                calcETAsFromHub();
+            }
         }
 
         function updateDireccionHeader(title) {
@@ -204,8 +208,9 @@
             }
         }
 
+        // Called immediately
         function loadSheet() {
-            return fetch('celulas.xlsx')
+            fetch('celulas.xlsx')
                 .then(r => r.arrayBuffer())
                 .then(async data => {
                     const workbook = XLSX.read(data, { type: 'array' });
@@ -218,7 +223,6 @@
                     rows = dataRows.map(r => {
                         let obj = {};
                         headES.forEach((k, i) => { obj[k] = r[i]; });
-                        // Initialize routing props
                         obj.DIRECCION_FROM_EXCEL = obj.DIRECCION;
                         if (obj.ZONA && obj.ZONA.toLowerCase() === 'la cosecha') {
                             obj.EFFECTIVE_ROUTING_ADDRESS = HUB_ADDR;
@@ -230,52 +234,50 @@
                         return obj;
                     });
 
-                    // Calculate initial ETAs from Hub
-                    await calcETAsFromHub();
-
+                    // Build logic regardless of Map status
                     buildUI();
                     filterAndDisplayCells();
+
+                    // If Map is already ready, calculate
+                    if (distSvc) {
+                        calcETAsFromHub();
+                    }
                 });
         }
+        loadSheet();
 
-        // Logic to calculate ETAs from the Church (Hub) to all cells
         async function calcETAsFromHub() {
-            // Filter rows that have a valid address for routing
-            const targets = rows.filter(r => r.EFFECTIVE_ROUTING_ADDRESS && !r.EFFECTIVE_ROUTING_ADDRESS.toLowerCase().includes('zoom'));
+            if (!distSvc || !rows.length) return;
+            const targets = rows.filter(r => r.EFFECTIVE_ROUTING_ADDRESS && !r.EFFECTIVE_ROUTING_ADDRESS.toLowerCase().includes('zoom') && r.ETA_FROM_HUB === null);
             if (targets.length === 0) return;
 
-            // We proceed in batches to respect API limits (though client-side matrix has limits too, usually 25 dests)
-            // We will do one by one or small batches. For reliability in this reconstruction, one by one is safest or chunks of 10.
-            // Let's use a simple chunk approach.
             const chunkSize = 10;
             for (let i = 0; i < targets.length; i += chunkSize) {
                 const chunk = targets.slice(i, i + chunkSize);
-                const destinations = chunk.map(r => ({ query: r.EFFECTIVE_ROUTING_ADDRESS })); // format for DistanceMatrix? 
-                // DistanceMatrix takes 'destinations' as string array or LatLng.
                 const destConnectors = chunk.map(r => r.EFFECTIVE_ROUTING_ADDRESS);
 
-                await new Promise(resolve => {
-                    distSvc.getDistanceMatrix({
-                        origins: [HUB_ADDR],
-                        destinations: destConnectors,
-                        travelMode: 'DRIVING',
-                    }, (response, status) => {
-                        if (status === 'OK') {
-                            const results = response.rows[0].elements;
-                            chunk.forEach((row, idx) => {
-                                const element = results[idx];
-                                if (element.status === 'OK') {
-                                    // Duration value is in seconds, convert to minutes
-                                    row.ETA_FROM_HUB = Math.round(element.duration.value / 60);
-                                } else {
-                                    row.ETA_FROM_HUB = null; // Unreachable
-                                }
-                            });
-                        }
-                        resolve(); // Continue even if error
+                try {
+                    await new Promise(resolve => {
+                        distSvc.getDistanceMatrix({
+                            origins: [HUB_ADDR],
+                            destinations: destConnectors,
+                            travelMode: 'DRIVING',
+                        }, (response, status) => {
+                            if (status === 'OK') {
+                                const results = response.rows[0].elements;
+                                chunk.forEach((row, idx) => {
+                                    const element = results[idx];
+                                    if (element.status === 'OK') {
+                                        row.ETA_FROM_HUB = Math.round(element.duration.value / 60);
+                                    }
+                                });
+                                // Refresh UI with new ETAs
+                                filterAndDisplayCells();
+                            }
+                            resolve();
+                        });
                     });
-                });
-                // Small delay between batches
+                } catch (e) { console.error(e); }
                 await new Promise(r => setTimeout(r, 500));
             }
         }
@@ -284,14 +286,16 @@
             const zoneSet = new Set();
             rows.forEach(r => { if (r.ZONA) zoneSet.add(r.ZONA); });
             const sel = document.getElementById('zonaSelect');
-            sel.innerHTML = '<option value="">All Zones</option>';
-            Array.from(zoneSet).sort().forEach(z => {
-                const op = document.createElement('option');
-                op.value = z;
-                op.textContent = z;
-                sel.appendChild(op);
-            });
-            sel.addEventListener('change', filterAndDisplayCells);
+            if (sel) {
+                sel.innerHTML = '<option value="">All Zones</option>';
+                Array.from(zoneSet).sort().forEach(z => {
+                    const op = document.createElement('option');
+                    op.value = z;
+                    op.textContent = z;
+                    sel.appendChild(op);
+                });
+                sel.addEventListener('change', filterAndDisplayCells);
+            }
 
             if ($.fn.DataTable.isDataTable('#tabla')) $('#tabla').DataTable().destroy();
 
@@ -317,17 +321,12 @@
         function filterAndDisplayCells() {
             const zoneVal = document.getElementById('zonaSelect').value.toLowerCase();
 
-            // Calculate ETAs from HOME if homePos is set (and not already calc'd?)
-            // For simplicity relative to 'runSearch', we assume 'runSearch' is the main trigger for home ETAs.
-            // But here we rely on 'filterAndDisplayCells' to Sort/Display.
-            // 'runSearch' (attached below) logic should probably trigger the calculation.
-            // In this restored version, we just sort/display.
-
             let currentFilteredRows = rows.filter(r => {
                 if (zoneVal && (!r.ZONA || r.ZONA.toLowerCase() !== zoneVal)) return false;
                 return true;
             });
 
+            // Sorting logic (unchanged)
             if (homePos) {
                 currentFilteredRows.sort((a, b) => {
                     if (a.ETA_FROM_HOME == null) return 1;
@@ -343,7 +342,7 @@
             }
 
             const displayList = currentFilteredRows.map(cell => {
-                let cellForDisplay = { ...cell }; // Clone to avoid mutating original 'DIRECCION'
+                let cellForDisplay = { ...cell };
 
                 const lowerAddr = (cell.DIRECCION_FROM_EXCEL || cell.DIRECCION || '').toLowerCase();
                 const lowerZone = (cell.ZONA || '').toLowerCase();
@@ -393,16 +392,13 @@
             }).join('');
         }
 
-        // Logic for 'Search' button - calculating ETAs from Home
         async function runSearch() {
-            if (!homePos) return; // Should not happen if input logic is correct, but safety check.
+            if (!homePos) return;
             const searchBtn = document.getElementById('searchBtn');
             const nearestDiv = document.getElementById('nearest');
             searchBtn.disabled = true;
             nearestDiv.textContent = 'Calculating routes...';
 
-            // Calculate ETA from homePos to all rows
-            // Similar batch approach
             const targets = rows.filter(r => r.EFFECTIVE_ROUTING_ADDRESS && !r.EFFECTIVE_ROUTING_ADDRESS.toLowerCase().includes('zoom'));
             const chunkSize = 10;
 
@@ -410,31 +406,30 @@
                 const chunk = targets.slice(i, i + chunkSize);
                 const destConnectors = chunk.map(r => r.EFFECTIVE_ROUTING_ADDRESS);
 
-                await new Promise(resolve => {
-                    distSvc.getDistanceMatrix({
-                        origins: [homePos], // LatLng object
-                        destinations: destConnectors,
-                        travelMode: 'DRIVING',
-                        drivingOptions: { departureTime: new Date() } // Traffic
-                    }, (response, status) => {
-                        if (status === 'OK') {
-                            const results = response.rows[0].elements;
-                            chunk.forEach((row, idx) => {
-                                const element = results[idx];
-                                if (element.status === 'OK') {
-                                    row.ETA_FROM_HOME = Math.round(element.duration_in_traffic ? element.duration_in_traffic.value / 60 : element.duration.value / 60);
-                                } else {
-                                    row.ETA_FROM_HOME = null;
-                                }
-                            });
-                        }
-                        resolve();
+                try {
+                    await new Promise(resolve => {
+                        distSvc.getDistanceMatrix({
+                            origins: [homePos],
+                            destinations: destConnectors,
+                            travelMode: 'DRIVING',
+                            drivingOptions: { departureTime: new Date() }
+                        }, (response, status) => {
+                            if (status === 'OK') {
+                                const results = response.rows[0].elements;
+                                chunk.forEach((row, idx) => {
+                                    const element = results[idx];
+                                    if (element.status === 'OK') {
+                                        row.ETA_FROM_HOME = Math.round(element.duration_in_traffic ? element.duration_in_traffic.value / 60 : element.duration.value / 60);
+                                    }
+                                });
+                            }
+                            resolve();
+                        });
                     });
-                });
+                } catch (e) { console.error(e); }
                 await new Promise(r => setTimeout(r, 300));
             }
 
-            // Find nearest
             let nearest = null;
             let minMinutes = Infinity;
             rows.forEach(r => {
@@ -458,8 +453,9 @@
         document.getElementById('searchBtn').addEventListener('click', runSearch);
 
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=gmapsReady" async
-        defer></script>
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=gmapsReady"
+        async defer></script>
 </body>
 
 </html>
