@@ -153,7 +153,7 @@
             'DIA': 'Day', 'HORA': 'Time', 'IDIOMA': 'Language', 'TIPO DE CELULA': 'Group Type',
             'STATUS': 'Status', 'NOMBRE DEL MAESTRO/A': 'Teacher/Host', 'MAESTRO': 'Teacher',
             'MAESTRA': 'Teacher', 'DIRECTOR': 'Director', 'NUMERO DE TELEFONO': 'Phone Number',
-            'TELEFONO': 'Phone', 'LINK': 'Link', 'ASISTENTES': 'Attendees', 'NIÑOS': 'Children',
+            'TELEFONO': 'Phone', 'LINK': 'Link', 'ASISTENTES': 'Attendees', 'ASISTENTE': 'Assistant', 'NIÑOS': 'Children',
             'FECHA DE APERTURA': 'Opening Date', 'ASISTENCIA LIDERES': 'Leaders Attended', 'OBSERVACIONES': 'Observations'
         };
 
@@ -305,7 +305,8 @@
                 return {
                     title: title,
                     data: key,
-                    visible: (key !== 'LINK' && key !== 'STATUS')
+                    visible: (key !== 'LINK' && key !== 'STATUS'),
+                    defaultContent: ""
                 };
             });
 
