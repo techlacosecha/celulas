@@ -1,329 +1,465 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Growth Cells | Zone</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css"><style>/* -------- CSS Styles -------- */
-/* Body styles: Sets default font for the entire page,
-   removes default browser margin, and sets a light background color. */
-body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa}
+<!DOCTYPE html>
+<html lang="en">
 
-/* Header banner styles: Ensures the banner image is responsive,
-   occupies full width (display:block, width:100%),
-   maintains aspect ratio (auto height), does not exceed a maximum height (25% of viewport height),
-   and scales to fit within its bounds without cropping (object-fit:contain). */
-header .banner{display:block;width:100%;height:auto;max-height:25vh;object-fit:contain;margin:0}
+<head>
+    <meta charset="utf-8">
+    <title>Growth Cells | Zone</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+    <style>
+        body {
+            font-family: system-ui, Arial, sans-serif;
+            margin: 0;
+            background: #fafafa
+        }
 
-/* Controls container styles: This div ('controls') holds the zone filter and address search input.
-   Flexbox is used for layout: 'display:flex' enables flexbox,
-   'flex-wrap:wrap' allows items to wrap to the next line if they don't fit,
-   'gap' provides spacing between items, and 'align-items:center' vertically aligns them. */
-.controls{margin:1rem 2rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center}
-/* Styles for the zone select dropdown ('#zonaSelect') and the text input for address ('#homeInput'):
-   Defines padding, font size, border, and border-radius for a uniform look. */
-#zonaSelect,#homeInput{padding:.35rem .6rem;font-size:1rem;border:1px solid #ccc;border-radius:4px}
-/* Specific styles for the home address input:
-   It gets more flex-grow weight (10) to take up available space,
-   and a minimum width to ensure it's usable on small screens. */
-#homeInput{flex:10;min-width:200px}
-/* Styles for the search button ('#searchBtn'):
-   Green background, white text, pointer cursor, and hover effect to darken the background. */
-#searchBtn{padding:.35rem 1rem;font-size:1rem;background-color:#28a745;color:#fff;border:none;border-radius:4px;cursor:pointer}
-#searchBtn:hover{background-color:#218838}
-/* Styles for the 'nearest' message div:
-   It displays feedback like "Nearest cell is X min away".
-   Bold text, green color, and minimal margin. */
-#nearest{font-weight:700;color:#28a745;margin:0 .5rem}
+        header .banner {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 25vh;
+            object-fit: contain;
+            margin: 0
+        }
 
-/* Map container styles:
-   Hidden by default (display:none) because we don't show the map initially.
-   It has a specific height and is centered. */
-#map{height:400px;width:90%;margin:1rem auto;background:#eee;border:1px solid #ddd;display:none}
+        .controls {
+            margin: 1rem 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+            align-items: center
+        }
 
-/* Table container styles:
-   The table wrapper ('#tabla-container') is centered with a max-width
-   and handles horizontal scrolling (overflow-x:auto) for small screens. */
-#tabla-container{max-width:1200px;margin:1rem auto;padding:0 1rem;overflow-x:auto}
-/* DataTable styles:
-   Ensures the table takes full width and has collapsed borders. */
-table.dataTable{width:100%;border-collapse:collapse}
+        #zonaSelect,
+        #homeInput {
+            padding: .35rem .6rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px
+        }
 
-/* Card view styles (Mobile):
-   The '.card' class defines the look of each cell unit when displayed as a card.
-   White background, rounded corners, shadow for depth, padding, and bottom margin. */
-.card{background:#fff;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,0.1);padding:1rem;margin-bottom:1rem;border:1px solid #eee}
-/* Styles for paragraphs in cards:
-   Removes default margins for cleaner layout within the card. */
-.card p{margin:.25rem 0}
-/* Initially hide the cards container on desktop (screens larger than 768px). */
-#cards{display:none;margin:1rem 2rem}
+        #homeInput {
+            flex: 10;
+            min-width: 200px
+        }
 
-/* Media query for Mobile screens (max-width: 768px):
-   When the screen width is 768px or less: */
-@media(max-width:768px){
-    /* Hide the table container. */
-    #tabla-container{display:none}
-    /* Show the cards container. */
-    #cards{display:block}
-    /* Adjust controls margin for better mobile spacing. */
-    .controls{margin:1rem}
-}
-</style></head><body><header><img src="english_header.svg" alt="Banner" class="banner"></header><div class="controls"><select id="zonaSelect"><option value="">All Zones</option></select><input type="text" id="homeInput" placeholder="Enter your address..."><div id="nearest"></div><button id="searchBtn">Search</button></div><div id="map"></div><div id="cards"></div><div id="tabla-container"><table id="tabla" class="display" style="width:100%"></table></div><script src="https://code.jquery.com/jquery-3.7.0.min.js"></script><script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script>/* ========================================================================== JavaScript Logic for Cell Finder Application (English Version) ========================================================================== */ /* ---------- GLOBAL CONSTANTS ---------- */ // HUB_ADDR: Defines the fixed physical street address of the church ("The Harvest"). // This constant is used as: // 1. The default origin point for calculating the initial Estimated Time of Arrival (ETA) to all listed cell groups. // 2. The specific destination address for cell groups that are designated as being in the "La Cosecha" zone (assuming these take place at the church premises). // 3. Conceptually, it represents the church affiliation for "Zoom" cells, though their 'EFFECTIVE_ROUTING_ADDRESS' is null for ETA calculations. const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550'; /* ---------- GLOBAL APPLICATION STATE VARIABLES ---------- */ // headES: An array that will store the names of the column headers. // These names are extracted directly from the first row of the processed Excel sheet. // This array is vital for several operations: // a) Mapping data from each row of the Excel sheet to corresponding properties of JavaScript objects (each object representing a cell group). // b) Programmatically configuring the columns and their titles when initializing the DataTables instance. // c) Generating appropriate labels for data points when displaying cell information in the "cards" view (mobile layout). // Example content after processing Excel: ['#', 'ZONE', 'LEADER', 'ADDRESS', 'DAY', 'TIME', 'LANGUAGE', ...] // Note: 'LANGUAGE' is 'IDIOMA' in Excel let headES = []; // geocoder: Almacenará una instancia del servicio 'google.maps.Geocoder' de la API de Google Maps. // El propósito principal de este servicio es la geocodificación, que es el proceso de convertir direcciones de texto // legibles por humanos (ejemplo: "123 Calle Principal, Ciudad Ejemplo, País") en coordenadas geográficas // (latitud y longitud) que pueden ser entendidas y utilizadas por sistemas de mapeo. También puede realizar la operación inversa (geocodificación inversa: de coordenadas a dirección). let geocoder; // distSvc: Almacenará una instancia del servicio 'google.maps.DistanceMatrixService' de la API de Google Maps. // Este servicio es utilizado para calcular la distancia y, de manera más importante para esta aplicación, el tiempo de viaje estimado // entre uno o más puntos de origen y uno o más puntos de destino. Considera el modo de viaje especificado (en este caso, conducción). let distSvc; // homePos: Un objeto JavaScript que almacenará las coordenadas geográficas (en el formato {lat: numero, lng: numero}) // de la dirección de casa que el usuario ha introducido y ha sido validada (usualmente a través del servicio de Autocomplete o una geocodificación directa). // Se inicializa como 'null'. Cuando 'homePos' contiene un objeto de coordenadas válido, indica que se ha realizado una búsqueda de casa, // lo que activa el cálculo de ETAs desde esa ubicación y modifica el comportamiento de visualización de la tabla y las tarjetas. let homePos = null; // geoCache: Un objeto 'Map' de JavaScript que funciona como una memoria caché simple para los resultados de las solicitudes de geocodificación. // La 'clave' del mapa es la dirección (cadena de texto) y el 'valor' es el objeto de coordenadas {lat, lng} correspondiente. // Antes de hacer una solicitud a la API de Geocodificación de Google (que cuesta dinero y tiempo), el código verifica si la dirección ya está en este caché. // Si lo está, se devuelve el resultado almacenado inmediatamente, evitando una llamada redundante a la API. // Esto ayuda a optimizar el uso de la API y mejorar el rendimiento. const geoCache = new Map(); // (after const geoCache = new Map();)
+        #searchBtn {
+            padding: .35rem 1rem;
+            font-size: 1rem;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer
+        }
 
-// NEW: Map for translating Spanish Excel headers to English for display
-const headerTranslationMap = {
-  '#': '#',
-  'ZONA': 'Zone',
-  'RED': 'Network',
-  'DISTRITO': 'District',
-  'CELULA': 'Group',
-  'SUPERVISOR': 'Supervisor',
-  'LIDER': 'Leader',
-  'ANFITRION': 'Host',
-  'DIRECCION': 'Address/ETA', // Base translation
-  'DIA': 'Day',
-  'HORA': 'Time',
-  'IDIOMA': 'Language',
-  'TIPO DE CELULA': 'Group Type',
-  'STATUS': 'Status',
-  // Comprehensive mapping for Spanish terms:
-  'NOMBRE DEL MAESTRO/A': 'Teacher/Host',
-  'MAESTRO': 'Teacher',
-  'MAESTRA': 'Teacher',
-  'DIRECTOR': 'Director',
-  'NUMERO DE TELEFONO': 'Phone Number',
-  'TELEFONO': 'Phone',
-  'LINK': 'Link',
-  'ASISTENTES': 'Attendees',
-  'NIÑOS': 'Children',
-  'FECHA DE APERTURA': 'Opening Date',
-  'ASISTENCIA LIDERES': 'Leaders Attended',
-  'OBSERVACIONES': 'Observations'
-};
+        #searchBtn:hover {
+            background-color: #218838
+        }
 
-/* ---------- HELPER FUNCTION TO FORMAT COLUMN TITLES ---------- */ // This function takes a string 'str' (expected to be a column header or a label) // and returns a new string where the first letter is capitalized, and all subsequent letters in the string are converted to lowercase. // This is used to ensure a consistent "Title Case"-like formatting for headers in the UI (table headers and card labels). // - It safely handles inputs that are null, undefined, or not strings by returning an empty string, preventing errors. // - 'str.charAt(0).toUpperCase()': Retrieves the very first character of the input string 'str' and converts it to its uppercase equivalent. // - 'str.slice(1).toLowerCase()': Retrieves the rest of the string 'str' (i.e., from the second character to the end) and converts this entire substring to lowercase. // - The capitalized first letter and the lowercased rest of the string are then concatenated to form the result. // Example: if str is "ZONE", it returns "Zone". // Example: if str is "NAME OF TEACHER/HOST", it returns "Name of teacher/host". function formatHeaderTitle(str) { if (!str || typeof str !== 'string') return ''; // Safety check: if input is invalid, return an empty string. return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase(); // Apply the capitalization and lowercasing formatting. } /* ---------- GOOGLE MAPS INITIALIZATION ---------- */ // This asynchronous function ('async') is designated as the 'callback' function in the Google Maps API script URL // (specified via the 'callback=gmapsReady'). // The browser automatically executes it once the Google Maps API script (including the specified 'Places' library) // has fully loaded and is ready for use. async function gmapsReady() { // Create and initialize instances of Google Maps services needed throughout the application. geocoder = new google.maps.Geocoder(); // Instance for geocoding addresses. distSvc = new google.maps.DistanceMatrixService(); // Instance for distance and travel time calculations. // Load and process cell data from the 'celulas.xlsx' file. // 'await' is used here to pause the execution of 'gmapsReady' until the Promise returned by 'loadSheet' is resolved (i.e., 'loadSheet' completes). // 'loadSheet' is responsible for reading the Excel file, transforming the data into the 'rows' array, // performing initial ETA calculations (from the hub/church to each cell), and subsequently calling 'buildUI' to set up the user interface. await loadSheet(); // Get the DOM element for the home address input field using its ID ('homeInput'). const autocompleteInput = document.getElementById('homeInput'); // Create an instance of the Google Places Autocomplete service and attach it to the 'homeInput' field. // The 'types: ['geocode']' option configures the Autocomplete service to suggest primarily geocodable addresses // (like street addresses), rather than general points of interest or business names. This helps ensure the user selects a valid address. const ac = new google.maps.places.Autocomplete(autocompleteInput, { types: ['geocode'] }); // Register an event listener for the 'place_changed' event on the Autocomplete instance ('ac'). // This event is specifically triggered by the Autocomplete service when the user selects a place (address) // from the list of suggestions that appears dynamically beneath the input field as they type, or when they press Enter on a highlighted suggestion. ac.addListener('place_changed', () => { const place = ac.getPlace(); // The 'getPlace()' method of the Autocomplete object returns a 'PlaceResult' object. // This object contains detailed information about the place selected by the user, // including its name, formatted address, and, most importantly for this application, its geometry (which includes location coordinates). const wasHomePosSet = !!homePos; // Store the state of 'homePos' *before* this potential update. // '!!homePos' is a concise way to coerce 'homePos' to a boolean: // 'true' if 'homePos' was not null or undefined (i.e., it was previously set with coordinates), // and 'false' if 'homePos' was null or undefined. This helps in detecting if a previously set home address is now being cleared by the user. // Update the global 'homePos' variable with the coordinates of the newly selected place. // Check if 'place.geometry' exists. The 'geometry' property of a 'PlaceResult' object contains location information, including 'location.lat()' and 'location.lng()'. // If 'place.geometry' exists (meaning the selected place has valid geographic coordinates), // create a new object '{lat, lng}' with these coordinates and assign it to 'homePos'. // If 'place.geometry' does not exist (e.g., the user cleared the input field, or the selected item from Autocomplete has no specific geometry), // set 'homePos' to 'null', indicating that no valid home address is currently set. homePos = place.geometry ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : null; // Logic to handle the scenario where a previously set home address is cleared or becomes invalid: if (!homePos && wasHomePosSet) { // This condition is true if 'homePos' is now 'null' (because it was just cleared or the new selection is invalid) // AND 'wasHomePosSet' is 'true' (which means 'homePos' previously had a valid value). document.getElementById('nearest').textContent = ''; // Clear any message that was previously displayed in the '#nearest' div (e.g., "Nearest cell is...").      // Revert the title of the 'DIRECCION' (Address/ETA) column header in the DataTable back to its initial, default state ("Drive from Church").
-      const direccionOriginalHeaderKey = 'DIRECCION'; // The original key (from Excel header) for the address/ETA column in the data objects.
-      const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey); // Find the index (0-based position) of this column.
-      if (direccionColumnIndex !== -1 && table) { // Proceed only if the 'DIRECCION' column exists and the DataTable ('table') has been initialized.
-        const column = table.column(direccionColumnIndex); // Get the DataTables API object for this specific column using its index.
-                                                          // This allows manipulation of the column, such as accessing its header.
-        // Use jQuery to select the column's header element (the <th> tag) and update its HTML content.
-        // 'formatHeaderTitle' is called to ensure the reverted title ("Drive from Church") is capitalized correctly according to the application's style.
-        $(column.header()).html(formatHeaderTitle('Drive from Church'));
-      }
-      
-      // Refresh the entire display of cells in the table and cards.
-      // Since 'homePos' is now 'null', the 'filterAndDisplayCells' function (called next) will:
-      //  - NOT filter by distance (unless other filters are active).
-      //  - Sort the data based on the default column (usually ETA_FROM_HUB or similar, depending on DataTables config).
-      //  - Display 'ETA_FROM_HUB' (Church ETA) in the address column instead of 'ETA_FROM_HOME'.
-      filterAndDisplayCells(); 
-    } 
+        #nearest {
+            font-weight: 700;
+            color: #28a745;
+            margin: 0 .5rem
+        }
 
-    // Logic to handle the scenario where a valid home address has been selected:
-    if (homePos) { // This condition is true if 'homePos' contains valid coordinates.
-      // Filter and display the cells again.
-      // 'filterAndDisplayCells' will now use the new 'homePos' to:
-      //  - Calculate 'ETA_FROM_HOME' for all cells.
-      //  - Sort the results by 'ETA_FROM_HOME' (nearest first).
-      //  - Display 'ETA_FROM_HOME' in the address column.
-      filterAndDisplayCells(); 
-      
-      // Update the 'DIRECCION' column header in the DataTable to reflect that it now shows ETA from the user's home.
-      const direccionOriginalHeaderKey = 'DIRECCION';
-      const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey);
-      if (direccionColumnIndex !== -1 && table) {
-         // Change header to "Drive from Home" (or similar)
-         // Note: The user requested consistent labeling.
-         const label = 'Drive from Home';
-         $(column.header()).html(formatHeaderTitle(label));
-      }
-    }
-  });
+        #map {
+            height: 400px;
+            width: 90%;
+            margin: 1rem auto;
+            background: #eee;
+            border: 1px solid #ddd;
+            display: none
+        }
 
-  // Handle manual clearing of the input field (since 'place_changed' might not trigger if user just deletes text).
-  // 'input' event fires whenever the value of the <input> element is changed.
-  autocompleteInput.addEventListener('input', () => {
-    // If the input field is empty (user deleted everything) AND 'homePos' was previously set:
-    if (autocompleteInput.value === '' && homePos) {
-      homePos = null; // Reset 'homePos' to null.
-      document.getElementById('nearest').textContent = ''; // Clear the "nearest cell" message.
-      
-      // Revert the DataTable header for 'DIRECCION' back to "Drive from Church".
-      const direccionOriginalHeaderKey = 'DIRECCION';
-      const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey);
-      if (direccionColumnIndex !== -1 && table) {
-         // Verify table exists and has the column
-         const column = table.column(direccionColumnIndex);
-         $(column.header()).html(formatHeaderTitle('Drive from Church'));
-      }
-      
-      // Refresh the data display (revert to default sorting and Hub ETAs).
-      filterAndDisplayCells();
-    }
-  });
-}
+        #tabla-container {
+            max-width: 1200px;
+            margin: 1rem auto;
+            padding: 0 1rem;
+            overflow-x: auto
+        }
 
-function loadSheet() {
-  return fetch('celulas.xlsx') // Fetch file
-    .then(r => r.arrayBuffer())
-    .then(data => {
-      const workbook = XLSX.read(data, {type:'array'});
-      const sheetVar = workbook.Sheets[workbook.SheetNames[0]];
-      const json = XLSX.utils.sheet_to_json(sheetVar, {header:1});
-      if (!json || json.length === 0) return;
-      headES = json[0]; // Capture keys
-      const dataRows = json.slice(1);
+        table.dataTable {
+            width: 100%;
+            border-collapse: collapse
+        }
 
-      rows = dataRows.map(r => {
-        let obj = {};
-        headES.forEach((k, i) => { obj[k] = r[i]; });
-        return obj;
-      });
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #eee
+        }
 
-      // ETA Calculation (simplified for this snippet, assuming calls to distSvc)
-      // For now, we assume rows are populated.
-      // Since this is a reconstruction, we assume the original logic for ETA (calculating ETA_FROM_HUB) exists here.
-      // ... (Existing logic for batch ETA calculation) ...
-      // After calculations:
-      buildUI();
-      filterAndDisplayCells(); // Initial display
-    });
-}
-// Note: The full `loadSheet` implementation likely includes batching for DistanceMatrix. 
-// I am preserving the critical parts for UI.
+        .card p {
+            margin: .25rem 0
+        }
 
-/* ---------- UI BUILDER ---------- */
-function buildUI() {
-    const zoneSet = new Set();
-    rows.forEach(r => { if(r.ZONA) zoneSet.add(r.ZONA); });
-    const sel = document.getElementById('zonaSelect');
-    // Clear existing options except first
-    sel.innerHTML = '<option value="">All Zones</option>';
-    Array.from(zoneSet).sort().forEach(z => {
-        const op = document.createElement('option');
-        op.value = z;
-        op.textContent = z; // Zone names usually don't need translation if they vary? Or use map?
-        sel.appendChild(op);
-    });
-    sel.addEventListener('change', filterAndDisplayCells);
+        #cards {
+            display: none;
+            margin: 1rem 2rem
+        }
 
-    // DataTable Init
-    if ($.fn.DataTable.isDataTable('#tabla')) $('#tabla').DataTable().destroy();
+        @media(max-width:768px) {
+            #tabla-container {
+                display: none
+            }
 
-    // Map headers from headES to English for DataTable columns
-    const columns = headES.map(key => {
-        // Translation logic
-        let title = headerTranslationMap[key] || formatHeaderTitle(key);
-        // Special case for initial load of DIRECCION
-        if(key === 'DIRECCION') title = 'Drive from Church'; 
+            #cards {
+                display: block
+            }
 
-        return {
-            title: title,
-            data: key,
-            visible: (key !== 'LINK' && key !== 'STATUS') // Hide specific cols
+            .controls {
+                margin: 1rem
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header><img src="english_header.svg" alt="Banner" class="banner"></header>
+    <div class="controls"><select id="zonaSelect">
+            <option value="">All Zones</option>
+        </select><input type="text" id="homeInput" placeholder="Enter your address...">
+        <div id="nearest"></div><button id="searchBtn">Search</button>
+    </div>
+    <div id="map"></div>
+    <div id="cards"></div>
+    <div id="tabla-container">
+        <table id="tabla" class="display" style="width:100%"></table>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        /* ==========================================================================
+           JavaScript Logic for Cell Finder Application (English Version - Fixed V3)
+           ========================================================================== */
+
+        const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
+        let headES = [];
+        let geocoder;
+        let distSvc;
+        let homePos = null;
+        const geoCache = new Map();
+        let rows = [];
+        let table;
+
+        const headerTranslationMap = {
+            '#': '#', 'ZONA': 'Zone', 'RED': 'Network', 'DISTRITO': 'District', 'CELULA': 'Group',
+            'SUPERVISOR': 'Supervisor', 'LIDER': 'Leader', 'ANFITRION': 'Host', 'DIRECCION': 'Address/ETA',
+            'DIA': 'Day', 'HORA': 'Time', 'IDIOMA': 'Language', 'TIPO DE CELULA': 'Group Type',
+            'STATUS': 'Status', 'NOMBRE DEL MAESTRO/A': 'Teacher/Host', 'MAESTRO': 'Teacher',
+            'MAESTRA': 'Teacher', 'DIRECTOR': 'Director', 'NUMERO DE TELEFONO': 'Phone Number',
+            'TELEFONO': 'Phone', 'LINK': 'Link', 'ASISTENTES': 'Attendees', 'NIÑOS': 'Children',
+            'FECHA DE APERTURA': 'Opening Date', 'ASISTENCIA LIDERES': 'Leaders Attended', 'OBSERVACIONES': 'Observations'
         };
-    });
 
-    table = $('#tabla').DataTable({
-        data: [], // Populated by filterAndDisplayCells
-        columns: columns,
-        paging: false, // Or true, depending on preference
-        info: false,
-        searching: false // We use custom search
-        // ... other options
-    });
-}
+        function formatHeaderTitle(str) {
+            if (!str || typeof str !== 'string') return '';
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        }
 
-/* ---------- FILTERING & DISPLAY ---------- */
-function filterAndDisplayCells() {
-  const zoneVal = document.getElementById('zonaSelect').value.toLowerCase();
-  
-  // 1. Filter rows
-  let currentFilteredRows = rows.filter(r => {
-    if (zoneVal && (!r.ZONA || r.ZONA.toLowerCase() !== zoneVal)) return false;
-    return true;
-  });
+        async function gmapsReady() {
+            geocoder = new google.maps.Geocoder();
+            distSvc = new google.maps.DistanceMatrixService();
+            await loadSheet();
 
-  // 2. Sort
-  if (homePos) {
-      // Sort by ETA_FROM_HOME (asc)
-      currentFilteredRows.sort((a,b) => {
-          if (a.ETA_FROM_HOME == null) return 1;
-          if (b.ETA_FROM_HOME == null) return -1;
-          return a.ETA_FROM_HOME - b.ETA_FROM_HOME;
-      });
-  } else {
-      // Sort by ETA_FROM_HUB (asc) - default
-      currentFilteredRows.sort((a,b) => {
-           if (a.ETA_FROM_HUB == null) return 1;
-           if (b.ETA_FROM_HUB == null) return -1;
-           return a.ETA_FROM_HUB - b.ETA_FROM_HUB;
-      });
-  }
+            const autocompleteInput = document.getElementById('homeInput');
+            const ac = new google.maps.places.Autocomplete(autocompleteInput, { types: ['geocode'] });
 
-  // 3. Prepare Display Data (Transform values)
-  const displayList = currentFilteredRows.map(cell => {
-      let cellForDisplay = { ...cell }; // Clone
-      
-      // Logic for DIRECCION display
-      // If Zoom -> "Online via Zoom"
-      const lowerAddr = (cell.DIRECCION || '').toLowerCase();
-      const lowerZone = (cell.ZONA || '').toLowerCase();
+            ac.addListener('place_changed', () => {
+                const place = ac.getPlace();
+                const wasHomePosSet = !!homePos;
+                homePos = place.geometry ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : null;
 
-      if (lowerAddr.includes('zoom') || lowerZone.includes('zoom')) {
-          cellForDisplay['DIRECCION'] = 'Online via Zoom';
-      } else if (homePos && typeof cell.ETA_FROM_HOME === 'number') {
-          cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
-      } else {
-          // Fallback
-          if (lowerZone === 'la cosecha') {
-              cellForDisplay['DIRECCION'] = 'Church main hall (general meeting)';
-          } else {
-              cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min from Church` : (cell.DIRECCION || '—');
-          }
-      }
-      return cellForDisplay;
-  });
+                if (!homePos && wasHomePosSet) {
+                    document.getElementById('nearest').textContent = '';
+                    updateDireccionHeader('Drive from Church');
+                    filterAndDisplayCells();
+                }
+                if (homePos) {
+                    updateDireccionHeader('Drive from Home');
+                    filterAndDisplayCells();
+                }
+            });
 
-  // 4. Update Table
-  if (table) {
-      table.clear();
-      table.rows.add(displayList);
-      table.draw();
-  }
+            autocompleteInput.addEventListener('input', () => {
+                if (autocompleteInput.value === '' && homePos) {
+                    homePos = null;
+                    document.getElementById('nearest').textContent = '';
+                    updateDireccionHeader('Drive from Church');
+                    filterAndDisplayCells();
+                }
+            });
+        }
 
-  // 5. Update Cards
-  const cardsDiv = document.getElementById('cards');
-  if (cardsDiv) {
-      renderCards(displayList);
-  }
-}
+        function updateDireccionHeader(title) {
+            const direccionColumnIndex = headES.indexOf('DIRECCION');
+            if (direccionColumnIndex !== -1 && table) {
+                const column = table.column(direccionColumnIndex);
+                $(column.header()).html(formatHeaderTitle(title));
+            }
+        }
 
-/* ---------- RENDER CARDS (Mobile) ---------- */
-function renderCards(list) {
-  const cardsDiv = document.getElementById('cards');
-  if (!cardsDiv) return;
+        function loadSheet() {
+            return fetch('celulas.xlsx')
+                .then(r => r.arrayBuffer())
+                .then(async data => {
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetVar = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(sheetVar, { header: 1 });
+                    if (!json || json.length === 0) return;
+                    headES = json[0];
+                    const dataRows = json.slice(1);
 
-  cardsDiv.innerHTML = list.map(cell => {
-      const lines = headES.map(key => {
-          if (key === 'LINK' || key === 'STATUS') return '';
+                    rows = dataRows.map(r => {
+                        let obj = {};
+                        headES.forEach((k, i) => { obj[k] = r[i]; });
+                        // Initialize routing props
+                        obj.DIRECCION_FROM_EXCEL = obj.DIRECCION;
+                        if (obj.ZONA && obj.ZONA.toLowerCase() === 'la cosecha') {
+                            obj.EFFECTIVE_ROUTING_ADDRESS = HUB_ADDR;
+                        } else {
+                            obj.EFFECTIVE_ROUTING_ADDRESS = obj.DIRECCION;
+                        }
+                        obj.ETA_FROM_HUB = null;
+                        obj.ETA_FROM_HOME = null;
+                        return obj;
+                    });
 
-          // TRANSLATION FIX
-          let label = headerTranslationMap[key] || formatHeaderTitle(key);
+                    // Calculate initial ETAs from Hub
+                    await calcETAsFromHub();
 
-          // MOBILE LABEL FIX
-          if (key === 'DIRECCION') {
-             if (homePos) label = 'Drive from Home';
-             else label = 'Drive from Church';
-          }
+                    buildUI();
+                    filterAndDisplayCells();
+                });
+        }
 
-          const val = cell[key];
-          return `<p><strong>${label}:</strong> ${val}</p>`;
-      }).join('');
-      return `<div class="card">${lines}</div>`;
-  }).join('');
-}
+        // Logic to calculate ETAs from the Church (Hub) to all cells
+        async function calcETAsFromHub() {
+            // Filter rows that have a valid address for routing
+            const targets = rows.filter(r => r.EFFECTIVE_ROUTING_ADDRESS && !r.EFFECTIVE_ROUTING_ADDRESS.toLowerCase().includes('zoom'));
+            if (targets.length === 0) return;
 
-// Stub for runSearch if needed (often alias for filterAndDisplayCells logic)
-function runSearch() {
-   // implementation ...
-}
-</script>
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=gmapsReady" async defer></script>
-</body></html>
+            // We proceed in batches to respect API limits (though client-side matrix has limits too, usually 25 dests)
+            // We will do one by one or small batches. For reliability in this reconstruction, one by one is safest or chunks of 10.
+            // Let's use a simple chunk approach.
+            const chunkSize = 10;
+            for (let i = 0; i < targets.length; i += chunkSize) {
+                const chunk = targets.slice(i, i + chunkSize);
+                const destinations = chunk.map(r => ({ query: r.EFFECTIVE_ROUTING_ADDRESS })); // format for DistanceMatrix? 
+                // DistanceMatrix takes 'destinations' as string array or LatLng.
+                const destConnectors = chunk.map(r => r.EFFECTIVE_ROUTING_ADDRESS);
+
+                await new Promise(resolve => {
+                    distSvc.getDistanceMatrix({
+                        origins: [HUB_ADDR],
+                        destinations: destConnectors,
+                        travelMode: 'DRIVING',
+                    }, (response, status) => {
+                        if (status === 'OK') {
+                            const results = response.rows[0].elements;
+                            chunk.forEach((row, idx) => {
+                                const element = results[idx];
+                                if (element.status === 'OK') {
+                                    // Duration value is in seconds, convert to minutes
+                                    row.ETA_FROM_HUB = Math.round(element.duration.value / 60);
+                                } else {
+                                    row.ETA_FROM_HUB = null; // Unreachable
+                                }
+                            });
+                        }
+                        resolve(); // Continue even if error
+                    });
+                });
+                // Small delay between batches
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+
+        function buildUI() {
+            const zoneSet = new Set();
+            rows.forEach(r => { if (r.ZONA) zoneSet.add(r.ZONA); });
+            const sel = document.getElementById('zonaSelect');
+            sel.innerHTML = '<option value="">All Zones</option>';
+            Array.from(zoneSet).sort().forEach(z => {
+                const op = document.createElement('option');
+                op.value = z;
+                op.textContent = z;
+                sel.appendChild(op);
+            });
+            sel.addEventListener('change', filterAndDisplayCells);
+
+            if ($.fn.DataTable.isDataTable('#tabla')) $('#tabla').DataTable().destroy();
+
+            const columns = headES.map(key => {
+                let title = headerTranslationMap[key] || formatHeaderTitle(key);
+                if (key === 'DIRECCION') title = 'Drive from Church';
+                return {
+                    title: title,
+                    data: key,
+                    visible: (key !== 'LINK' && key !== 'STATUS')
+                };
+            });
+
+            table = $('#tabla').DataTable({
+                data: [],
+                columns: columns,
+                paging: false,
+                info: false,
+                searching: false
+            });
+        }
+
+        function filterAndDisplayCells() {
+            const zoneVal = document.getElementById('zonaSelect').value.toLowerCase();
+
+            // Calculate ETAs from HOME if homePos is set (and not already calc'd?)
+            // For simplicity relative to 'runSearch', we assume 'runSearch' is the main trigger for home ETAs.
+            // But here we rely on 'filterAndDisplayCells' to Sort/Display.
+            // 'runSearch' (attached below) logic should probably trigger the calculation.
+            // In this restored version, we just sort/display.
+
+            let currentFilteredRows = rows.filter(r => {
+                if (zoneVal && (!r.ZONA || r.ZONA.toLowerCase() !== zoneVal)) return false;
+                return true;
+            });
+
+            if (homePos) {
+                currentFilteredRows.sort((a, b) => {
+                    if (a.ETA_FROM_HOME == null) return 1;
+                    if (b.ETA_FROM_HOME == null) return -1;
+                    return a.ETA_FROM_HOME - b.ETA_FROM_HOME;
+                });
+            } else {
+                currentFilteredRows.sort((a, b) => {
+                    if (a.ETA_FROM_HUB == null) return 1;
+                    if (b.ETA_FROM_HUB == null) return -1;
+                    return a.ETA_FROM_HUB - b.ETA_FROM_HUB;
+                });
+            }
+
+            const displayList = currentFilteredRows.map(cell => {
+                let cellForDisplay = { ...cell }; // Clone to avoid mutating original 'DIRECCION'
+
+                const lowerAddr = (cell.DIRECCION_FROM_EXCEL || cell.DIRECCION || '').toLowerCase();
+                const lowerZone = (cell.ZONA || '').toLowerCase();
+
+                if (lowerAddr.includes('zoom') || lowerZone.includes('zoom')) {
+                    cellForDisplay['DIRECCION'] = 'Online via Zoom';
+                } else if (homePos && typeof cell.ETA_FROM_HOME === 'number') {
+                    cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
+                } else {
+                    if (lowerZone === 'la cosecha') {
+                        cellForDisplay['DIRECCION'] = 'Church main hall (general meeting)';
+                    } else {
+                        cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min from Church` : (cell.DIRECCION || '—');
+                    }
+                }
+                return cellForDisplay;
+            });
+
+            if (table) {
+                table.clear();
+                table.rows.add(displayList);
+                table.draw();
+            }
+
+            const cardsDiv = document.getElementById('cards');
+            if (cardsDiv) {
+                renderCards(displayList);
+            }
+        }
+
+        function renderCards(list) {
+            const cardsDiv = document.getElementById('cards');
+            if (!cardsDiv) return;
+
+            cardsDiv.innerHTML = list.map(cell => {
+                const lines = headES.map(key => {
+                    if (key === 'LINK' || key === 'STATUS') return '';
+                    let label = headerTranslationMap[key] || formatHeaderTitle(key);
+                    if (key === 'DIRECCION') {
+                        if (homePos) label = 'Drive from Home';
+                        else label = 'Drive from Church';
+                    }
+                    const val = cell[key];
+                    return `<p><strong>${label}:</strong> ${val}</p>`;
+                }).join('');
+                return `<div class="card">${lines}</div>`;
+            }).join('');
+        }
+
+        // Logic for 'Search' button - calculating ETAs from Home
+        async function runSearch() {
+            if (!homePos) return; // Should not happen if input logic is correct, but safety check.
+            const searchBtn = document.getElementById('searchBtn');
+            const nearestDiv = document.getElementById('nearest');
+            searchBtn.disabled = true;
+            nearestDiv.textContent = 'Calculating routes...';
+
+            // Calculate ETA from homePos to all rows
+            // Similar batch approach
+            const targets = rows.filter(r => r.EFFECTIVE_ROUTING_ADDRESS && !r.EFFECTIVE_ROUTING_ADDRESS.toLowerCase().includes('zoom'));
+            const chunkSize = 10;
+
+            for (let i = 0; i < targets.length; i += chunkSize) {
+                const chunk = targets.slice(i, i + chunkSize);
+                const destConnectors = chunk.map(r => r.EFFECTIVE_ROUTING_ADDRESS);
+
+                await new Promise(resolve => {
+                    distSvc.getDistanceMatrix({
+                        origins: [homePos], // LatLng object
+                        destinations: destConnectors,
+                        travelMode: 'DRIVING',
+                        drivingOptions: { departureTime: new Date() } // Traffic
+                    }, (response, status) => {
+                        if (status === 'OK') {
+                            const results = response.rows[0].elements;
+                            chunk.forEach((row, idx) => {
+                                const element = results[idx];
+                                if (element.status === 'OK') {
+                                    row.ETA_FROM_HOME = Math.round(element.duration_in_traffic ? element.duration_in_traffic.value / 60 : element.duration.value / 60);
+                                } else {
+                                    row.ETA_FROM_HOME = null;
+                                }
+                            });
+                        }
+                        resolve();
+                    });
+                });
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            // Find nearest
+            let nearest = null;
+            let minMinutes = Infinity;
+            rows.forEach(r => {
+                if (typeof r.ETA_FROM_HOME === 'number' && r.ETA_FROM_HOME < minMinutes) {
+                    minMinutes = r.ETA_FROM_HOME;
+                    nearest = r;
+                }
+            });
+
+            if (nearest) {
+                nearestDiv.textContent = `Nearest: ${nearest.CELULA || '?'} (${minMinutes} min)`;
+            } else {
+                nearestDiv.textContent = 'No routes found.';
+            }
+
+            updateDireccionHeader('Drive from Home');
+            filterAndDisplayCells();
+            searchBtn.disabled = false;
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', runSearch);
+
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=gmapsReady" async
+        defer></script>
+</body>
+
+</html>
