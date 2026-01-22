@@ -154,6 +154,31 @@
             margin: 1rem 2rem 0;
             font-weight: 700
         }
+
+        #installBtn {
+            padding: .35rem .9rem;
+            font-size: 1rem;
+            background: #28a745;
+            border: 1px solid #28a745;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: auto;
+            display: inline-block;
+            /* Always visible unless redundant */
+        }
+
+        #installBtn:hover {
+            background-color: #218838;
+        }
+
+        @media (max-width: 900px) {
+            #installBtn {
+                margin-left: 0;
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+        }
     </style>
 </head>
 
@@ -170,7 +195,7 @@
         <label for="homeInput" class="addr-label">Find nearest group:</label>
         <input id="homeInput" type="text" placeholder="Enter your address..." />
         <button id="searchBtn">Search</button>
-        <button id="installBtn" style="display:none;">Download App</button>
+        <button id="installBtn">Download App</button>
     </div>
 
     <div id="nearest"></div>
@@ -181,69 +206,54 @@
     <div id="cards" class="cards"></div>
     <div id="error" hidden></div>
 
-    <style>
-        #installBtn {
-            padding: .35rem .9rem;
-            font-size: 1rem;
-            /* Green to match leaf color (approx #28a745 or similar vibrant green) */
-            background: #28a745; 
-            border: 1px solid #28a745;
-            color: #fff;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-left: auto; /* Push to right */
-        }
-        #installBtn:hover {
-            background-color: #218838;
-        }
-        @media (max-width: 900px) {
-             #installBtn {
-                 margin-left: 0; /* Reset on mobile if flex wraps */
-                 width: 100%; /* Full width for easier tapping */
-             }
-        }
-    </style>
-
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         /* ==========================================================================
-           JavaScript Logic - English V8 (PWA Install Button)
+           JavaScript Logic - English V9 (Always Visible Install Button + Fallbacks)
            ========================================================================== */
-        
+
         let deferredPrompt;
         const installBtn = document.getElementById('installBtn');
 
-        // Service Worker
+        // 1. Check if already in Standalone (App) Mode -> Hide Button
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            installBtn.style.display = 'none';
+        }
+
+        // 2. Service Worker Reg
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered', reg))
-                    .catch(err => console.log('Service Worker registration failed', err));
+                    .then(reg => console.log('SW registered'))
+                    .catch(err => console.log('SW failed', err));
             });
         }
 
-        // Install Prompt Event Listener
+        // 3. Listen for Prompt
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             deferredPrompt = e;
-            // Update UI to notify the user they can add to home screen
-            installBtn.style.display = 'block';
+            console.log('beforeinstallprompt fired');
         });
 
+        // 4. Handle Click
         installBtn.addEventListener('click', async () => {
             if (deferredPrompt) {
-                // Show the install prompt
+                // Scenario A: Browser provided a prompt (Android/Desktop Chrome)
                 deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                // We've used the prompt, and can't use it again, discard it
+                console.log(`User response: ${outcome}`);
                 deferredPrompt = null;
-                installBtn.style.display = 'none';
+            } else {
+                // Scenario B: No prompt available (iOS / already ignored / unsupported)
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                if (isIOS) {
+                    alert("To install on iOS:\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap 'Add to Home Screen'");
+                } else {
+                    alert("To install: Open your browser menu (⋮) and select 'Add to Home Screen' or 'Install App'.");
+                }
             }
         });
 
@@ -252,7 +262,6 @@
         let geocoder;
         let distSvc;
         let homePos = null;
-        const geoCache = new Map();
         let rows = [];
         let table;
 
@@ -570,7 +579,7 @@
                                 chunk.forEach((row, idx) => {
                                     const element = results[idx];
                                     if (element.status === 'OK') {
-                                        row.ETA_FROM_HOME = Math.round(element.duration_in_traffic ? element.duration_in_traffic.value / 60 : element.duration.value / 60);
+                                        row.ETA_FROM_HUB = Math.round(element.duration_in_traffic ? element.duration_in_traffic.value / 60 : element.duration.value / 60);
                                     }
                                 });
                             }
