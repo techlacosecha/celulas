@@ -703,10 +703,13 @@
       } catch (e) {
         console.error("Error in loadSheet:", e);
         let msg = "Error cargando los datos de las células: " + e.message;
-        if (window.location.protocol === 'file:' && e.message.includes('Fetch')) {
-          msg += ". <br><br><strong>NOTA IMPORTANTE:</strong> Parece que estás abriendo el archivo directamente (file://). " +
-            "Por seguridad, los navegadores bloquean la carga de Excel localmente. " +
-            "Debes usar un servidor web local (ej. Live Server en VS Code) o subirlo a la web.";
+
+        // Relaxed check: If we are on file protocol, nearly ANY fetch error is CORS.
+        // Also checking for 'Load failed' or 'fetch' case-insensitively just in case.
+        if (window.location.protocol === 'file:') {
+          msg += ". <br><br><strong>NOTA IMPORTANTE:</strong> Parece que estás abriendo el archivo directamente del disco (file://). " +
+            "Por seguridad, el navegador bloquea la lectura de Excel. " +
+            "<br>SOLUCIÓN: Abre la aplicación usando un servidor (como Live Server en VS Code) o visualízala desde la web.";
         }
         $('#error').show().html(msg);
       }
