@@ -518,14 +518,15 @@
     let mapsLoaded = false;
 
     // Timeout to force load if Maps API fails (e.g. invalid key for file:// or network issue)
+    // Increased to 8000ms (8s) to allow for slow mobile data before giving up on ETAs
     setTimeout(() => {
       if (!mapsLoaded) {
         console.warn("Maps API taking too long or failed. Loading sheet in fallback mode.");
-        document.getElementById('error').innerHTML += "<br><small style='color:orange'>Aviso: Google Maps no cargó (posible restricción de clave). La tabla cargará sin cálculo de distancias.</small>";
+        document.getElementById('error').innerHTML += "<br><small style='color:orange'>Aviso: Google Maps tarda demasiado (Slow Network). Cargando tabla sin distancias.</small>";
         document.getElementById('error').hidden = false;
         loadSheet(); // Force load without Maps
       }
-    }, 4000);
+    }, 8000);
 
     // Esta función asíncrona ('async') se define como la función 'callback' en la URL del script de la API de Google Maps
     // (a través del parámetro 'callback=gmapsReady').

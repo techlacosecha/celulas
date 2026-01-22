@@ -315,9 +315,36 @@
         }
     </style>
 
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+
+    <script>
+        // Global Error Handler
+        window.onerror = function (msg, url, line, col, error) {
+            var extra = !url ? '' : '<br><small>' + url + ':' + line + '</small>';
+            var errDiv = document.getElementById('error');
+            if (errDiv) {
+                errDiv.hidden = false;
+                errDiv.style.display = 'block';
+                errDiv.innerHTML = "Critical Error: " + msg + extra;
+            }
+            return false;
+        };
+
+        // Watchdog for Maps API (warns if it takes too long, but doesn't block app)
+        setTimeout(() => {
+            if (typeof distSvc === 'undefined') {
+                const errDiv = document.getElementById('error');
+                if (errDiv) {
+                    errDiv.hidden = false;
+                    errDiv.style.display = 'block';
+                    errDiv.innerHTML += "<br><small style='color:orange'>Warning: Google Maps is slow or blocked. ETAs may not load.</small>";
+                }
+            }
+        }, 8000);
+    </script>
+
     <script>
         /* ==========================================================================
            JavaScript Logic - English V10 (Smart Install Guide Overlay)
@@ -536,8 +563,19 @@
                     }
                 })
                 .catch(err => {
-                    document.getElementById('error').textContent = "Error loading data: " + err.message;
-                    document.getElementById('error').hidden = false;
+                    const errDiv = document.getElementById('error');
+                    let msg = "Error loading data: " + err.message;
+
+                    if (window.location.protocol === 'file:') {
+                        msg += "<br><br><strong>LOCAL FILE ERROR:</strong><br>" +
+                            "Browsers block Excel files from 'file://'.<br>" +
+                            "⚠️ FIX: Use 'Live Server' in VS Code or host on GitHub.";
+                    }
+                    if (errDiv) {
+                        errDiv.innerHTML = msg;
+                        errDiv.hidden = false;
+                        errDiv.style.display = 'block';
+                    }
                 });
         }
         loadSheet();

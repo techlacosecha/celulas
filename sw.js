@@ -18,6 +18,16 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+    const url = new URL(e.request.url);
+
+    // CRITICAL: Always go to network for APIs (Google Maps, etc)
+    // This ensures we don't return stale/failed cache responses for dynamic data
+    if (url.hostname.includes('google') || url.hostname.includes('gstatic')) {
+        e.respondWith(fetch(e.request));
+        return;
+    }
+
+    // Cache-First strategy for static assets
     e.respondWith(
         caches.match(e.request).then((response) => response || fetch(e.request))
     );
