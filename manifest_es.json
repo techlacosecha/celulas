@@ -1,0 +1,16 @@
+{
+    "name": "Buscador de Grupos",
+    "short_name": "Células",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#28a745",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "icon_es-512.png",
+            "type": "image/png",
+            "sizes": "512x512"
+        }
+    ]
+}
