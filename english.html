@@ -206,16 +206,148 @@
     <div id="cards" class="cards"></div>
     <div id="error" hidden></div>
 
+    <!-- SMART INSTALL GUIDE OVERLAY -->
+    <div id="installGuide" class="install-guide" hidden>
+        <div class="guide-content">
+            <button class="close-guide" id="closeGuide">&times;</button>
+            <div id="iosGuide" hidden>
+                <h3>Install on iPhone</h3>
+                <p>1. Tap the <strong>Share</strong> button <span class="icon-share"></span> below.</p>
+                <p>2. Scroll down and select <br><strong>"Add to Home Screen"</strong> <span class="icon-plus">+</span>.
+                </p>
+                <div class="arrow-down">⬇</div>
+            </div>
+            <div id="androidGuide" hidden>
+                <h3>Install App</h3>
+                <p>Tap the menu button (⋮) and select <strong>"Install App"</strong> or <strong>"Add to Home
+                        Screen"</strong>.</p>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* OVERLAY STYLES */
+        .install-guide {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            /* Align to bottom for iOS */
+            padding-bottom: 2rem;
+            color: #fff;
+            text-align: center;
+        }
+
+        .guide-content {
+            background: #1e1e1e;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            position: relative;
+            margin-bottom: 50px;
+            /* Space for the arrow */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .close-guide {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .arrow-down {
+            font-size: 3rem;
+            margin-top: 1rem;
+            animation: bounce 2s infinite;
+            color: #28a745;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            20%,
+            50%,
+            80%,
+            100% {
+                transform: translateY(0);
+            }
+
+            40% {
+                transform: translateY(-10px);
+            }
+
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .icon-share {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>') no-repeat center center;
+            background-size: contain;
+            vertical-align: middle;
+        }
+
+        .icon-plus {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #fff;
+            background: #ccc;
+            color: #000;
+            border-radius: 4px;
+            padding: 0 4px;
+        }
+    </style>
+
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         /* ==========================================================================
-           JavaScript Logic - English V9 (Always Visible Install Button + Fallbacks)
+           JavaScript Logic - English V10 (Smart Install Guide Overlay)
            ========================================================================== */
 
         let deferredPrompt;
         const installBtn = document.getElementById('installBtn');
+        const guideOverlay = document.getElementById('installGuide');
+        const iosGuide = document.getElementById('iosGuide');
+        const androidGuide = document.getElementById('androidGuide');
+        const closeGuide = document.getElementById('closeGuide');
+
+        function showGuide(isIOS) {
+            guideOverlay.hidden = false;
+            guideOverlay.style.display = 'flex'; // Ensure flex layout
+            if (isIOS) {
+                iosGuide.hidden = false;
+                androidGuide.hidden = true;
+            } else {
+                iosGuide.hidden = true;
+                androidGuide.hidden = false;
+                // For non-iOS manual fallback, center it
+                guideOverlay.style.justifyContent = 'center';
+                guideOverlay.style.paddingBottom = '0';
+            }
+        }
+
+        closeGuide.addEventListener('click', () => {
+            guideOverlay.hidden = true;
+            guideOverlay.style.display = 'none';
+        });
 
         // 1. Check if already in Standalone (App) Mode -> Hide Button
         if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
@@ -241,19 +373,14 @@
         // 4. Handle Click
         installBtn.addEventListener('click', async () => {
             if (deferredPrompt) {
-                // Scenario A: Browser provided a prompt (Android/Desktop Chrome)
+                // Happy Path: Automatic Prompt
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response: ${outcome}`);
                 deferredPrompt = null;
             } else {
-                // Scenario B: No prompt available (iOS / already ignored / unsupported)
+                // Fallback Path: Show Guide
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                if (isIOS) {
-                    alert("To install on iOS:\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap 'Add to Home Screen'");
-                } else {
-                    alert("To install: Open your browser menu (⋮) and select 'Add to Home Screen' or 'Install App'.");
-                }
+                showGuide(isIOS);
             }
         });
 
