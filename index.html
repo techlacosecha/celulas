@@ -349,9 +349,25 @@
   <script src="./xlsx.full.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+
+  <script>
+    // Global Error Handler to catch script loading issues very early
+    window.onerror = function (msg, url, line, col, error) {
+      var extra = !url ? '' : '<br><small>' + url + ':' + line + '</small>';
+      var errDiv = document.getElementById('error');
+      if (errDiv) {
+        errDiv.hidden = false;
+        errDiv.style.display = 'block';
+        errDiv.innerHTML = "Critical Error: " + msg + extra;
+      }
+      return false;
+    };
+  </script>
+
   <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=gmapsReady">
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=gmapsReady&loading=async">
     </script>
+
 
   <script>
     /* ==========================================================================
@@ -497,16 +513,88 @@
       return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase(); // Aplica el formato de capitalización y minúsculas.
     }
 
-    /* ---------- INICIALIZACIÓN DE GOOGLE MAPS ---------- */
+    /* ---------- INICIALIZACIÓN DE GOOGLE MAPS & FALLBACK ---------- */
+
+    let mapsLoaded = false;
+
+    // Timeout to force load if Maps API fails (e.g. invalid key for file:// or network issue)
+    setTimeout(() => {
+      if (!mapsLoaded) {
+        console.warn("Maps API taking too long or failed. Loading sheet in fallback mode.");
+        document.getElementById('error').innerHTML += "<br><small style='color:orange'>Aviso: Google Maps no cargó (posible restricción de clave). La tabla cargará sin cálculo de distancias.</small>";
+        document.getElementById('error').hidden = false;
+        loadSheet(); // Force load without Maps
+      }
+    }, 4000);
+
     // Esta función asíncrona ('async') se define como la función 'callback' en la URL del script de la API de Google Maps
     // (a través del parámetro 'callback=gmapsReady').
     // El navegador la ejecuta automáticamente una vez que el script de la API de Google Maps (incluyendo la biblioteca 'Places' especificada)
     // se ha cargado completamente y está listo para ser utilizado.
     async function gmapsReady() {
-      // Crear e inicializar las instancias de los servicios de Google Maps que se necesitarán a lo largo de la aplicación.
-      geocoder = new google.maps.Geocoder(); // Instancia para geocodificación de direcciones.
-      distSvc = new google.maps.DistanceMatrixService(); // Instancia para cálculos de distancia y tiempo de viaje.
+      mapsLoaded = true;
+      try {
+        // Crear e inicializar las instancias de los servicios de Google Maps que se necesitarán a lo largo de la aplicación.
+        geocoder = new google.maps.Geocoder(); // Instancia para geocodificación de direcciones.
+        distSvc = new google.maps.DistanceMatrixService(); // Instancia para cálculos de distancia y tiempo de viaje.
 
+        // Obtener el elemento del DOM que representa el campo de entrada de texto donde el usuario escribirá su dirección de casa.
+        const autocompleteInput = document.getElementById('homeInput');
+        if (autocompleteInput) {
+          // Crear una instancia del servicio Autocomplete de Google Places y asociarla con el campo de entrada 'homeInput'.
+          // La opción 'types: ['geocode']' configura el Autocomplete para que sugiera principalmente direcciones geocodificables
+          // (es decir, lugares que pueden ser localizados en un mapa como direcciones postales, no negocios o puntos de interés generales).
+          const ac = new google.maps.places.Autocomplete(autocompleteInput, { types: ['geocode'] });
+
+          // Registrar un "listener" (oyente de eventos) para el evento 'place_changed' en la instancia de Autocomplete ('ac').
+          // Este evento se dispara específicamente cuando el usuario selecciona una dirección de la lista de sugerencias
+          // que aparece dinámicamente debajo del campo de entrada mientras escribe, o cuando presiona Enter sobre una sugerencia.
+          ac.addListener('place_changed', () => {
+            const place = ac.getPlace(); // El método 'getPlace()' de Autocomplete devuelve un objeto 'PlaceResult'.
+            // Este objeto contiene información detallada sobre el lugar seleccionado por el usuario,
+            // incluyendo su geometría (coordenadas), dirección formateada, etc.
+
+            const wasHomePosSet = !!homePos; // Guardar el estado de 'homePos' *antes* de la posible actualización.
+            // '!!homePos' convierte 'homePos' a 'true' si tenía un valor (no era null/undefined),
+            // y 'false' si era null/undefined. Esto es útil para detectar si el usuario está
+            // borrando una dirección que ya estaba establecida, o si es la primera vez que se establece.
+
+            // Actualizar la variable global 'homePos' con las coordenadas del lugar seleccionado.
+            // Se comprueba si 'place.geometry' existe. Si es así (el lugar tiene coordenadas válidas),
+            // se extraen la latitud (place.geometry.location.lat()) y longitud (place.geometry.location.lng()).
+            // Si 'place.geometry' no existe (por ejemplo, si el usuario borra el texto del campo y Autocomplete
+            // no tiene una selección válida, o la selección no tiene geometría), 'homePos' se establece a 'null'.
+            homePos = place.geometry ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : null;
+
+            // Lógica para manejar la situación en que la dirección de casa se borra o se invalida DESPUÉS de que ya había sido establecida:
+            if (!homePos && wasHomePosSet) { // Si 'homePos' es ahora 'null' (porque se borró o la nueva selección es inválida)
+              // Y además, 'wasHomePosSet' es 'true' (lo que significa que antes sí había una dirección de casa válida).
+              document.getElementById('nearest').textContent = ''; // Limpiar cualquier mensaje que se estuviera mostrando sobre la "célula más cercana".
+
+              // Revertir el título del encabezado de la columna 'DIRECCION' en la DataTable a su estado inicial ("conducir desde la iglesia").
+              const direccionOriginalHeaderKey = 'DIRECCION'; // La clave de datos que identifica la columna 'DIRECCION' en los objetos de 'rows'.
+              const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey); // Encontrar el índice (posición) de esta columna.
+              if (direccionColumnIndex !== -1 && table) { // Solo proceder si la columna 'DIRECCION' existe y la DataTable ('table') está inicializada.
+                const column = table.column(direccionColumnIndex); // Obtener el objeto de la columna de DataTables usando su índice.
+                // Esto permite acceder a propiedades y métodos de esa columna específica.
+                // Usar jQuery para seleccionar el elemento <th> del encabezado de esta columna y actualizar su contenido HTML.
+                // Se llama a 'formatHeaderTitle' para asegurar que el texto del encabezado tenga la capitalización correcta.
+                $(column.header()).html(formatHeaderTitle('Conducir desde la iglesia'));
+              }
+            }
+
+            // Refrescar la vista de la tabla y las tarjetas para que reflejen el estado "sin búsqueda de casa".
+            // Como 'homePos' es ahora 'null', la función 'filterAndDisplayCells' (llamada a continuación)
+            // se encargará de mostrar los ETAs por defecto (desde la iglesia) o el texto especial para la zona "La Cosecha".
+            // También aplicará el ordenamiento por defecto si no hay 'homePos' (según lo definido en 'buildUI').
+            filterAndDisplayCells();
+          });
+        }
+      } catch (e) {
+        console.error("Maps Init Error", e);
+      }
+
+      // Proceed to load data
       // Cargar y procesar los datos de las células desde el archivo 'celulas.xlsx'.
       // 'await' se usa aquí porque 'loadSheet' es una función asíncrona (devuelve una Promesa).
       // La ejecución de 'gmapsReady' se pausará en esta línea hasta que 'loadSheet' haya completado su tarea.
@@ -514,78 +602,26 @@
       // realizar cálculos iniciales de ETA desde el hub, y finalmente llamar a 'buildUI' para construir la interfaz.
       await loadSheet();
 
-      // Obtener el elemento del DOM que representa el campo de entrada de texto donde el usuario escribirá su dirección de casa.
-      const autocompleteInput = document.getElementById('homeInput');
-      // Crear una instancia del servicio Autocomplete de Google Places y asociarla con el campo de entrada 'homeInput'.
-      // La opción 'types: ['geocode']' configura el Autocomplete para que sugiera principalmente direcciones geocodificables
-      // (es decir, lugares que pueden ser localizados en un mapa como direcciones postales, no negocios o puntos de interés generales).
-      const ac = new google.maps.places.Autocomplete(autocompleteInput, { types: ['geocode'] });
+      // Si 'homePos' se establece por primera vez con una dirección válida, o si cambia de una dirección válida a otra,
+      // la función 'runSearch' (que se activa con el botón "Buscar" o la tecla Enter)
+      // será la responsable de realizar los nuevos cálculos de ETA desde esa nueva 'homePos'
+      // y de actualizar el encabezado de la columna 'DIRECCION' a "conduce desde tu casa", además de mostrar las células más cercanas.
+      // Añadir un "listener" de evento de clic al botón de búsqueda con id 'searchBtn'.
+      // Cuando el usuario hace clic en este botón, se ejecuta la función 'runSearch'.
+      document.getElementById('searchBtn').addEventListener('click', runSearch);
 
-      // Registrar un "listener" (oyente de eventos) para el evento 'place_changed' en la instancia de Autocomplete ('ac').
-      // Este evento se dispara específicamente cuando el usuario selecciona una dirección de la lista de sugerencias
-      // que aparece dinámicamente debajo del campo de entrada mientras escribe, o cuando presiona Enter sobre una sugerencia.
-      ac.addListener('place_changed', () => {
-        const place = ac.getPlace(); // El método 'getPlace()' de Autocomplete devuelve un objeto 'PlaceResult'.
-        // Este objeto contiene información detallada sobre el lugar seleccionado por el usuario,
-        // incluyendo su geometría (coordenadas), dirección formateada, etc.
-
-        const wasHomePosSet = !!homePos; // Guardar el estado de 'homePos' *antes* de la posible actualización.
-        // '!!homePos' convierte 'homePos' a 'true' si tenía un valor (no era null/undefined),
-        // y 'false' si era null/undefined. Esto es útil para detectar si el usuario está
-        // borrando una dirección que ya estaba establecida, o si es la primera vez que se establece.
-
-        // Actualizar la variable global 'homePos' con las coordenadas del lugar seleccionado.
-        // Se comprueba si 'place.geometry' existe. Si es así (el lugar tiene coordenadas válidas),
-        // se extraen la latitud (place.geometry.location.lat()) y longitud (place.geometry.location.lng()).
-        // Si 'place.geometry' no existe (por ejemplo, si el usuario borra el texto del campo y Autocomplete
-        // no tiene una selección válida, o la selección no tiene geometría), 'homePos' se establece a 'null'.
-        homePos = place.geometry ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : null;
-
-        // Lógica para manejar la situación en que la dirección de casa se borra o se invalida DESPUÉS de que ya había sido establecida:
-        if (!homePos && wasHomePosSet) { // Si 'homePos' es ahora 'null' (porque se borró o la nueva selección es inválida)
-          // Y además, 'wasHomePosSet' es 'true' (lo que significa que antes sí había una dirección de casa válida).
-          document.getElementById('nearest').textContent = ''; // Limpiar cualquier mensaje que se estuviera mostrando sobre la "célula más cercana".
-
-          // Revertir el título del encabezado de la columna 'DIRECCION' en la DataTable a su estado inicial ("conducir desde la iglesia").
-          const direccionOriginalHeaderKey = 'DIRECCION'; // La clave de datos que identifica la columna 'DIRECCION' en los objetos de 'rows'.
-          const direccionColumnIndex = headES.indexOf(direccionOriginalHeaderKey); // Encontrar el índice (posición) de esta columna.
-          if (direccionColumnIndex !== -1 && table) { // Solo proceder si la columna 'DIRECCION' existe y la DataTable ('table') está inicializada.
-            const column = table.column(direccionColumnIndex); // Obtener el objeto de la columna de DataTables usando su índice.
-            // Esto permite acceder a propiedades y métodos de esa columna específica.
-            // Usar jQuery para seleccionar el elemento <th> del encabezado de esta columna y actualizar su contenido HTML.
-            // Se llama a 'formatHeaderTitle' para asegurar que el texto del encabezado tenga la capitalización correcta.
-            $(column.header()).html(formatHeaderTitle('Conducir desde la iglesia'));
-          }
+      // Añadir un "listener" de evento de 'keypress' (pulsación de tecla) al campo de entrada de la dirección de casa ('#homeInput').
+      // Esto permite al usuario iniciar la búsqueda de células cercanas presionando la tecla 'Enter' mientras el foco del teclado está en este campo.
+      autocompleteInput.addEventListener('keypress', function (event) {
+        // El objeto 'event' que se pasa a la función callback contiene información sobre el evento de teclado, como qué tecla se presionó.
+        if (event.key === 'Enter') { // Comprobar si la propiedad 'key' del objeto 'event' es igual a la cadena 'Enter'.
+          event.preventDefault(); // Prevenir el comportamiento por defecto del navegador para la tecla 'Enter' en un campo de texto.
+          // Este comportamiento por defecto a menudo es intentar enviar un formulario si el input está dentro de un <form>.
+          // Aquí, queremos controlar la acción nosotros mismos llamando a 'runSearch'.
+          runSearch(); // Llamar a la función principal de búsqueda 'runSearch'.
         }
-
-        // Refrescar la vista de la tabla y las tarjetas para que reflejen el estado "sin búsqueda de casa".
-        // Como 'homePos' es ahora 'null', la función 'filterAndDisplayCells' (llamada a continuación)
-        // se encargará de mostrar los ETAs por defecto (desde la iglesia) o el texto especial para la zona "La Cosecha".
-        // También aplicará el ordenamiento por defecto si no hay 'homePos' (según lo definido en 'buildUI').
-        filterAndDisplayCells();
-      }
-    // Si 'homePos' se establece por primera vez con una dirección válida, o si cambia de una dirección válida a otra,
-    // la función 'runSearch' (que se activa con el botón "Buscar" o la tecla Enter)
-    // será la responsable de realizar los nuevos cálculos de ETA desde esa nueva 'homePos'
-    // y de actualizar el encabezado de la columna 'DIRECCION' a "conduce desde tu casa", además de mostrar las células más cercanas.
-  });
-
-    // Añadir un "listener" de evento de clic al botón de búsqueda con id 'searchBtn'.
-    // Cuando el usuario hace clic en este botón, se ejecuta la función 'runSearch'.
-    document.getElementById('searchBtn').addEventListener('click', runSearch);
-
-    // Añadir un "listener" de evento de 'keypress' (pulsación de tecla) al campo de entrada de la dirección de casa ('#homeInput').
-    // Esto permite al usuario iniciar la búsqueda de células cercanas presionando la tecla 'Enter' mientras el foco del teclado está en este campo.
-    autocompleteInput.addEventListener('keypress', function (event) {
-      // El objeto 'event' que se pasa a la función callback contiene información sobre el evento de teclado, como qué tecla se presionó.
-      if (event.key === 'Enter') { // Comprobar si la propiedad 'key' del objeto 'event' es igual a la cadena 'Enter'.
-        event.preventDefault(); // Prevenir el comportamiento por defecto del navegador para la tecla 'Enter' en un campo de texto.
-        // Este comportamiento por defecto a menudo es intentar enviar un formulario si el input está dentro de un <form>.
-        // Aquí, queremos controlar la acción nosotros mismos llamando a 'runSearch'.
-        runSearch(); // Llamar a la función principal de búsqueda 'runSearch'.
-      }
-    });
-}
+      });
+    }
 
     /* ---------- PROCESAMIENTO DE DATOS DE EXCEL ---------- */
     // Esta función asíncrona es responsable de:
@@ -604,6 +640,7 @@
         //    'fetch' devuelve una Promesa que se resuelve en un objeto 'Response' cuando el servidor responde.
         //    'await' pausa la ejecución hasta que esta Promesa se resuelva.
         const response = await fetch('celulas.xlsx');
+        if (!response.ok) throw new Error("Status " + response.status);
         // 2. Leer el cuerpo de la respuesta como un ArrayBuffer:
         //    El contenido del archivo Excel se necesita en formato binario para que SheetJS pueda procesarlo.
         //    El método '.arrayBuffer()' del objeto 'Response' devuelve una Promesa que se resuelve con el 'ArrayBuffer' del archivo.
@@ -659,6 +696,8 @@
         //    Este paso es fundamental para añadir/calcular propiedades relacionadas con la dirección efectiva para enrutamiento y los ETAs iniciales.
         //    'Promise.all()' toma un array de Promesas (generado por 'rows.map(async o => ...)') y espera a que todas ellas se resuelvan.
         //    Esto permite que los cálculos de ETA (que involucran llamadas a la API de Google y son asíncronos) se realicen de manera eficiente.
+        // Parallel processing of rows
+        // Note: If Maps isn't loaded (distSvc undefined), we skip ETA calc.
         await Promise.all(rows.map(async (o) => { // 'o' representa un objeto de célula individual que se está procesando.
           // Guardar la cadena de dirección original tal como se leyó de la columna 'DIRECCION' en el archivo Excel.
           // Se almacena en una nueva propiedad 'DIRECCION_FROM_EXCEL' para preservarla, ya que la propiedad 'DIRECCION'
@@ -683,12 +722,22 @@
           // Esta propiedad se usará consistentemente para todos los cálculos de ETA relacionados con esta célula (tanto desde el hub como desde casa del usuario).
           o['EFFECTIVE_ROUTING_ADDRESS'] = effectiveAddressForRouting;
 
-          // Calcular el ETA inicial desde la iglesia (HUB_ADDR) hasta la 'EFFECTIVE_ROUTING_ADDRESS' de esta célula.
-          // Si la célula es de la zona "La Cosecha", 'effectiveAddressForRouting' será HUB_ADDR,
-          // por lo que 'driveMinutes(HUB_ADDR, HUB_ADDR)' debería devolver 0 (o un valor muy pequeño, como 1 minuto,
-          // dependiendo de cómo Google Maps maneje rutas de un punto a sí mismo).
-          const etaHub = await driveMinutes(HUB_ADDR, o['EFFECTIVE_ROUTING_ADDRESS']);
-          o['ETA_FROM_HUB'] = etaHub; // Almacenar el ETA numérico (en minutos) o 'null' si el cálculo falla.
+          // SAFE ETA CALL: Only call driveMinutes if distSvc exists
+          if (mapsLoaded && distSvc) {
+            try {
+              // Calcular el ETA inicial desde la iglesia (HUB_ADDR) hasta la 'EFFECTIVE_ROUTING_ADDRESS' de esta célula.
+              // Si la célula es de la zona "La Cosecha", 'effectiveAddressForRouting' será HUB_ADDR,
+              // por lo que 'driveMinutes(HUB_ADDR, HUB_ADDR)' debería devolver 0 (o un valor muy pequeño, como 1 minuto,
+              // dependiendo de cómo Google Maps maneje rutas de un punto a sí mismo).
+              const etaHub = await driveMinutes(HUB_ADDR, o['EFFECTIVE_ROUTING_ADDRESS']);
+              o['ETA_FROM_HUB'] = etaHub; // Almacenar el ETA numérico (en minutos) o 'null' si el cálculo falla.
+            } catch (err) {
+              console.log("ETA Calc fail for " + o['DIRECCION'], err);
+              o['ETA_FROM_HUB'] = null;
+            }
+          } else {
+            o['ETA_FROM_HUB'] = null; // Map not loaded fallback
+          }
 
           // Inicializar la propiedad 'ETA_FROM_HOME' a 'null'. Esta propiedad almacenará el ETA
           // desde la dirección de casa del usuario hasta esta célula, pero solo se calculará
@@ -702,16 +751,21 @@
         buildUI();
       } catch (e) {
         console.error("Error in loadSheet:", e);
-        let msg = "Error cargando los datos de las células: " + e.message;
+        // Use Native DOM for absolute reliability
+        const errDiv = document.getElementById('error');
+        if (errDiv) {
+          errDiv.hidden = false;
+          errDiv.style.display = 'block';
+          let msg = "Error cargando datos: " + (e.message || e);
 
-        // Relaxed check: If we are on file protocol, nearly ANY fetch error is CORS.
-        // Also checking for 'Load failed' or 'fetch' case-insensitively just in case.
-        if (window.location.protocol === 'file:') {
-          msg += ". <br><br><strong>NOTA IMPORTANTE:</strong> Parece que estás abriendo el archivo directamente del disco (file://). " +
-            "Por seguridad, el navegador bloquea la lectura de Excel. " +
-            "<br>SOLUCIÓN: Abre la aplicación usando un servidor (como Live Server en VS Code) o visualízala desde la web.";
+          // Check for file protocol issues
+          if (window.location.protocol === 'file:') {
+            msg += "<br><br><strong>ERROR DE SEGURIDAD LOCAL:</strong><br>" +
+              "Los navegadores bloquean la lectura de Excel desde 'file://'.<br>" +
+              "⚠️ SOLUCION: Usa VS Code 'Live Server' o sube a GitHub.";
+          }
+          errDiv.innerHTML = msg;
         }
-        $('#error').show().html(msg);
       }
     }
 
