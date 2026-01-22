@@ -700,11 +700,15 @@
         // filtrados por idioma, y procesados con sus direcciones efectivas y ETAs iniciales desde el hub,
         // se llama a la función 'buildUI' para construir y mostrar la interfaz de usuario principal (tabla, filtros, etc.).
         buildUI();
-      } catch (e) { // Si ocurre cualquier error durante este proceso de carga y procesamiento de datos (ej., archivo no encontrado, error de parseo del Excel, problema de red).
-        // Mostrar un mensaje de error descriptivo en el elemento con id '#error' de la página HTML.
-        $('#error').show().text("Error cargando los datos de las células: " + e.message);
-        // Registrar también el error detallado (incluyendo el stack trace) en la consola del navegador para facilitar la depuración por parte del desarrollador.
+      } catch (e) {
         console.error("Error in loadSheet:", e);
+        let msg = "Error cargando los datos de las células: " + e.message;
+        if (window.location.protocol === 'file:' && e.message.includes('Fetch')) {
+          msg += ". <br><br><strong>NOTA IMPORTANTE:</strong> Parece que estás abriendo el archivo directamente (file://). " +
+            "Por seguridad, los navegadores bloquean la carga de Excel localmente. " +
+            "Debes usar un servidor web local (ej. Live Server en VS Code) o subirlo a la web.";
+        }
+        $('#error').show().html(msg);
       }
     }
 
