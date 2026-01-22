@@ -382,9 +382,30 @@
     };
   </script>
 
-  <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A&libraries=places&callback=gmapsReady&loading=async">
-    </script>
+  </script>
+
+  <script>
+    (g => { var h, a, k, p = "The Google Maps JavaScript API", c = "google", l = "importLibrary", q = "__ib__", m = document, b = window; b = b[c] || (b[c] = {}); var d = b.maps || (b.maps = {}), r = new Set, e = new URLSearchParams, u = () => h || (h = new Promise(async (f, n) => { await (a = m.createElement("script")); e.set("libraries", [...r] + ""); for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), g[k]); e.set("callback", c + ".maps." + q); a.src = `https://maps.${c}apis.com/maps/api/js?` + e; d[q] = f; a.onerror = () => h = n(Error(p + " could not load.")); a.nonce = m.querySelector("script[nonce]")?.nonce || ""; m.head.append(a) })); d[l] ? console.warn(p + " only loads once. Ignoring:", g) : d[l] = (f, ...n) => r.add(f) && u().then(() => d[l](f, ...n)) })({
+      key: "AIzaSyC4LU0O02a7lCRtZeyGbigQQcJ4EuSKa7A",
+      v: "weekly",
+      // libraries: "places" // Loaded via importLibrary below
+    });
+
+    async function initMaps() {
+      try {
+        await google.maps.importLibrary("maps");
+        await google.maps.importLibrary("places");
+        await google.maps.importLibrary("geocoding");
+        if (typeof gmapsReady === 'function') {
+          gmapsReady();
+        }
+      } catch (error) {
+        console.error("Maps Dynamic Load Error:", error);
+      }
+    }
+
+    initMaps();
+  </script>
 
 
   <script>
@@ -546,10 +567,8 @@
       }
     }, 8000);
 
-    // Esta función asíncrona ('async') se define como la función 'callback' en la URL del script de la API de Google Maps
-    // (a través del parámetro 'callback=gmapsReady').
-    // El navegador la ejecuta automáticamente una vez que el script de la API de Google Maps (incluyendo la biblioteca 'Places' especificada)
-    // se ha cargado completamente y está listo para ser utilizado.
+    // Esta función ('gmapsReady') es llamada manual y explícitamente por 'initMaps'
+    // una vez que el Bootstrap Loader ha terminado de cargar las librerías dinámicas.
     async function gmapsReady() {
       mapsLoaded = true;
       try {
