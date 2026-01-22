@@ -170,6 +170,7 @@
         <label for="homeInput" class="addr-label">Find nearest group:</label>
         <input id="homeInput" type="text" placeholder="Enter your address..." />
         <button id="searchBtn">Search</button>
+        <button id="installBtn" style="display:none;">Download App</button>
     </div>
 
     <div id="nearest"></div>
@@ -180,15 +181,41 @@
     <div id="cards" class="cards"></div>
     <div id="error" hidden></div>
 
+    <style>
+        #installBtn {
+            padding: .35rem .9rem;
+            font-size: 1rem;
+            /* Green to match leaf color (approx #28a745 or similar vibrant green) */
+            background: #28a745; 
+            border: 1px solid #28a745;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: auto; /* Push to right */
+        }
+        #installBtn:hover {
+            background-color: #218838;
+        }
+        @media (max-width: 900px) {
+             #installBtn {
+                 margin-left: 0; /* Reset on mobile if flex wraps */
+                 width: 100%; /* Full width for easier tapping */
+             }
+        }
+    </style>
+
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
         /* ==========================================================================
-           JavaScript Logic - English V7 (PWA + Translations + Filters + Formatting)
+           JavaScript Logic - English V8 (PWA Install Button)
            ========================================================================== */
+        
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
 
-        // PWA Service Worker Registration
+        // Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
@@ -196,6 +223,29 @@
                     .catch(err => console.log('Service Worker registration failed', err));
             });
         }
+
+        // Install Prompt Event Listener
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI to notify the user they can add to home screen
+            installBtn.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                // Show the install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                // We've used the prompt, and can't use it again, discard it
+                deferredPrompt = null;
+                installBtn.style.display = 'none';
+            }
+        });
 
         const HUB_ADDR = '600 Greenwich St, Hempstead, NY 11550';
         let headES = [];
