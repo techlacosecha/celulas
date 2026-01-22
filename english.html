@@ -676,17 +676,21 @@
 
                 if (lowerAddr.includes('zoom') || lowerZone.includes('zoom')) {
                     cellForDisplay['DIRECCION'] = 'Online via Zoom';
-                } else if (homePos && typeof cell.ETA_FROM_HOME === 'number') {
-                    cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
-                } else {
-                    if (lowerZone === 'la cosecha') {
-                        cellForDisplay['DIRECCION'] = 'Church main hall';
+                    if (homePos) {
+                        if (typeof cell.ETA_FROM_HOME === 'number') {
+                            cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min from Home`;
+                        } else {
+                            cellForDisplay['DIRECCION'] = 'Calculating...';
+                        }
                     } else {
-                        cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min from Church` : (cell.DIRECCION || '—');
+                        if (lowerZone === 'la cosecha') {
+                            cellForDisplay['DIRECCION'] = 'Church main hall';
+                        } else {
+                            cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min from Church` : (cell.DIRECCION || '—');
+                        }
                     }
-                }
-                return cellForDisplay;
-            });
+                    return cellForDisplay;
+                });
 
             if (table) {
                 table.clear();

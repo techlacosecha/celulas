@@ -590,6 +590,14 @@
             // También aplicará el ordenamiento por defecto si no hay 'homePos' (según lo definido en 'buildUI').
             filterAndDisplayCells();
           });
+
+          // Añadir un "listener" de evento de 'keypress' al campo de entrada
+          autocompleteInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              runSearch();
+            }
+          });
         }
       } catch (e) {
         console.error("Maps Init Error", e);
@@ -608,20 +616,7 @@
       // será la responsable de realizar los nuevos cálculos de ETA desde esa nueva 'homePos'
       // y de actualizar el encabezado de la columna 'DIRECCION' a "conduce desde tu casa", además de mostrar las células más cercanas.
       // Añadir un "listener" de evento de clic al botón de búsqueda con id 'searchBtn'.
-      // Cuando el usuario hace clic en este botón, se ejecuta la función 'runSearch'.
       document.getElementById('searchBtn').addEventListener('click', runSearch);
-
-      // Añadir un "listener" de evento de 'keypress' (pulsación de tecla) al campo de entrada de la dirección de casa ('#homeInput').
-      // Esto permite al usuario iniciar la búsqueda de células cercanas presionando la tecla 'Enter' mientras el foco del teclado está en este campo.
-      autocompleteInput.addEventListener('keypress', function (event) {
-        // El objeto 'event' que se pasa a la función callback contiene información sobre el evento de teclado, como qué tecla se presionó.
-        if (event.key === 'Enter') { // Comprobar si la propiedad 'key' del objeto 'event' es igual a la cadena 'Enter'.
-          event.preventDefault(); // Prevenir el comportamiento por defecto del navegador para la tecla 'Enter' en un campo de texto.
-          // Este comportamiento por defecto a menudo es intentar enviar un formulario si el input está dentro de un <form>.
-          // Aquí, queremos controlar la acción nosotros mismos llamando a 'runSearch'.
-          runSearch(); // Llamar a la función principal de búsqueda 'runSearch'.
-        }
-      });
     }
 
     /* ---------- PROCESAMIENTO DE DATOS DE EXCEL ---------- */
@@ -939,26 +934,18 @@
         const cellForDisplay = { ...cell };
 
         // Lógica principal para determinar qué texto se debe mostrar en la columna 'DIRECCION' para esta célula:
-        if (homePos && typeof cell.ETA_FROM_HOME === 'number') {
-          // CASO 1: El usuario ha realizado una búsqueda de dirección de casa ('homePos' está establecido con coordenadas válidas) Y
-          // la célula actual ('cell') tiene un valor numérico válido para su propiedad 'ETA_FROM_HOME'.
-          // En este escenario, el contenido de la columna 'DIRECCION' para esta célula será el ETA desde la casa del usuario.
-          // Esto también se aplica correctamente a las células de la zona "La Cosecha", para las cuales 'ETA_FROM_HOME'
-          // se habrá calculado respecto a HUB_ADDR (la dirección de la iglesia).
-          cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min`;
-        } else {
-          // CASO 2: No se ha realizado una búsqueda de dirección de casa (homePos es null),
-          // o esta célula específica no tiene un 'ETA_FROM_HOME' numérico válido (podría ser null si el cálculo de ETA desde casa falló para ella).
-          // En este caso, se recurre a la lógica de visualización por defecto o de "fallback".
-          if (cell['ZONA'] === 'La Cosecha') {
-            // Si la célula pertenece a la zona "La Cosecha", mostrar el texto estático especial definido
-            // en lugar de un ETA numérico desde el hub (que sería ≈ 0 min).
-            cellForDisplay['DIRECCION'] = 'Planta baja de la Iglesia (reunion general)';
+        if (homePos) {
+          if (typeof cell.ETA_FROM_HOME === 'number') {
+            cellForDisplay['DIRECCION'] = `≈ ${cell.ETA_FROM_HOME} min desde Casa`;
           } else {
-            // Para células de otras zonas (que no son "La Cosecha"), mostrar su ETA calculado desde el Hub (iglesia),
-            // el cual está almacenado en la propiedad 'ETA_FROM_HUB'.
-            // Si 'ETA_FROM_HUB' es nulo (ej., la dirección de la célula no era enrutable desde el hub), mostrar '—' (un guion).
-            cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min` : '—';
+            cellForDisplay['DIRECCION'] = 'Calculando...';
+          }
+        } else {
+          // CASO 2: No se ha realizado una búsqueda de dirección de casa (homePos es null).
+          if (cell['ZONA'] === 'La Cosecha') {
+            cellForDisplay['DIRECCION'] = 'Salón principal de la iglesia';
+          } else {
+            cellForDisplay['DIRECCION'] = cell.ETA_FROM_HUB != null ? `≈ ${cell.ETA_FROM_HUB} min desde la Iglesia` : (cell.DIRECCION || '—');
           }
         }
         return cellForDisplay; // Devolver el objeto 'cellForDisplay' con la propiedad 'DIRECCION' ahora formateada para visualización.
