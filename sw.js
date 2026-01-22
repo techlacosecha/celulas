@@ -23,7 +23,15 @@ self.addEventListener('fetch', (e) => {
     // CRITICAL: Always go to network for APIs (Google Maps, etc)
     // This ensures we don't return stale/failed cache responses for dynamic data
     if (url.hostname.includes('google') || url.hostname.includes('gstatic')) {
-        e.respondWith(fetch(e.request));
+        e.respondWith(
+            fetch(e.request).catch(() => {
+                return new Response('{"status": "offline"}', {
+                    status: 503,
+                    statusText: "Service Unavailable",
+                    headers: new Headers({ "Content-Type": "application/json" })
+                });
+            })
+        );
         return;
     }
 

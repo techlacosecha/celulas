@@ -347,6 +347,24 @@
   </div>
 
   <script src="./xlsx.full.min.js"></script>
+  <script>
+    // Visual Logger for Mobile Debugging
+    if (new URLSearchParams(window.location.search).get('debug')) {
+      const logDiv = document.createElement('div');
+      logDiv.style.cssText = "position:fixed;bottom:0;left:0;width:100%;height:30%;background:rgba(0,0,0,0.9);color:#0f0;font-family:monospace;font-size:10px;overflow:auto;z-index:10000;pointer-events:none;padding:5px;";
+      document.body.appendChild(logDiv);
+
+      ['log', 'warn', 'error'].forEach(method => {
+        const old = console[method];
+        console[method] = (...args) => {
+          old.apply(console, args);
+          logDiv.innerHTML += `<div>[${method.toUpperCase()}] ${args.join(' ')}</div>`;
+          logDiv.scrollTop = logDiv.scrollHeight;
+        };
+      });
+      window.onerror = (msg, url, line) => console.error(msg, url, line);
+    }
+  </script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 
